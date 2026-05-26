@@ -19,7 +19,6 @@
             background-color: #ffffff; /* Seamless pure white background */
             overflow: hidden;
             font-family: sans-serif;
-            /* Completely disable text selection across the site */
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
@@ -30,7 +29,7 @@
             width: 100%;
             height: 100%;
             display: grid;
-            grid-template-columns: 30% 40% 30%; /* Left/Right zones span 30% each, covering white spaces */
+            grid-template-columns: 30% 40% 30%;
             position: relative;
         }
         /* Presentation alignment frame centered underneath the navigation grid */
@@ -44,7 +43,7 @@
             justify-content: center;
             align-items: center;
             z-index: 5;
-            pointer-events: none; /* Allows hover clicks to pass cleanly through the wrapper */
+            pointer-events: none;
         }
         #pdf-canvas {
             display: block;
@@ -58,13 +57,14 @@
             display: flex;
             align-items: center;
             cursor: pointer;
-            z-index: 20; /* Sits over the top layer to register hovers and clicks instantly */
+            z-index: 20;
             position: relative;
+            visibility: visible; /* Modified dynamically by JavaScript */
         }
         .left-zone {
             grid-column: 1;
             justify-content: flex-start;
-            padding-left: 40px; /* Spacing from the absolute edge of the monitor */
+            padding-left: 40px;
         }
         .right-zone {
             grid-column: 3;
@@ -74,11 +74,11 @@
 
         /* Doubled Fading Navigation Arrows */
         .arrow {
-            font-size: 6rem; /* Doubled symbol size */
+            font-size: 6rem;
             font-weight: 300;
             color: #111111;
             background-color: rgba(255, 255, 255, 0.95);
-            width: 110px; /* Doubled container dimensions */
+            width: 110px;
             height: 110px;
             border-radius: 50%;
             display: flex;
@@ -87,8 +87,15 @@
             opacity: 0;
             transition: opacity 0.2s ease, transform 0.2s ease;
             box-shadow: 0 6px 20px rgba(0,0,0,0.06);
-            padding-bottom: 12px; /* Visual vertical optical alignment for chevrons */
+            padding-bottom: 12px;
         }
+        
+        /* Specific adjustments for the loop back symbol text alignment */
+        .arrow.loop-symbol {
+            padding-bottom: 0px;
+            font-size: 4.5rem;
+        }
+
         .left-zone:hover .arrow {
             opacity: 1;
             transform: translateX(20px);
@@ -102,12 +109,12 @@
 <body>
 
     <div id="viewport-grid">
-        <div id="left-nav" class="nav-zone left-zone" onclick="prevPage()">
+        <div id="left-trigger" class="nav-zone left-zone" onclick="prevPage()">
             <div class="arrow">&#8249;</div>
         </div>
         <div></div>
-        <div id="right-nav" class="nav-zone right-zone" onclick="nextPage()">
-            <div class="arrow">&#8250;</div>
+        <div id="right-trigger" class="nav-zone right-zone" onclick="nextPage()">
+            <div id="right-arrow-icon" class="arrow">&#8250;</div>
         </div>
     </div>
 
@@ -125,44 +132,44 @@
 
         const canvas = document.getElementById('pdf-canvas'),
               ctx = canvas.getContext('2d'),
-              leftNav = document.getElementById('left-nav'),
-              rightNav = document.getElementById('right-nav');
+              leftTrigger = document.getElementById('left-trigger'),
+              rightTrigger = document.getElementById('right-trigger'),
+              rightArrowIcon = document.getElementById('right-arrow-icon');
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // Manage visibility of navigation arrow containers dynamically based on context
-        function updateArrowVisibility() {
+        // Evaluate page visibility rules based on active queue positions
+        function updateNavigationUI() {
             if (!pdfDoc) return;
-            
-            // First page hides left arrow completely
-            if (pageNum <= 1) {
-                leftNav.style.display = 'none';
+
+            // Rule 1: Eliminate left arrow from the very first page
+            if (pageNum === 1) {
+                leftTrigger.style.visibility = 'hidden';
             } else {
-                leftNav.style.display = 'flex';
+                leftTrigger.style.visibility = 'visible';
             }
 
-            // Last page hides right arrow completely
-            if (pageNum >= pdfDoc.numPages) {
-                rightNav.style.display = 'none';
+            // Rule 2: Replace right arrow with a "back to beginning" circley loop symbol on the last page
+            if (pageNum === pdfDoc.numPages) {
+                rightArrowIcon.innerHTML = '&#8634;'; // Circular arrow loop symbol
+                rightArrowIcon.classList.add('loop-symbol');
             } else {
-                rightNav.style.display = 'flex';
+                rightArrowIcon.innerHTML = '&#8250;'; // Standard chevron right arrow
+                rightArrowIcon.classList.remove('loop-symbol');
             }
         }
 
         function renderPage(num) {
             pageIsRendering = true;
-            updateArrowVisibility();
+            updateNavigationUI();
 
             pdfDoc.getPage(num).then(page => {
-                // Calculate scale to lock boundaries tightly to window configurations
                 const viewport = page.getViewport({ scale: 1 });
                 const widthScale = window.innerWidth / viewport.width;
                 const heightScale = window.innerHeight / viewport.height;
                 const optimalScale = Math.min(widthScale, heightScale);
 
                 const dynamicViewport = page.getViewport({ scale: optimalScale });
-                
-                // Track physical device pixel scaling properties natively for Retina display sharpness
                 const outputScale = window.devicePixelRatio || 1;
                 
                 canvas.width = Math.floor(dynamicViewport.width * outputScale);
@@ -178,7 +185,6 @@
                     transform: transform
                 };
 
-                // Execute rendering process directly to the active layout canvas
                 page.render(renderContext).promise.then(() => {
                     pageIsRendering = false;
                     if (pageNumPending !== null) {
@@ -204,23 +210,25 @@
         }
 
         function nextPage() {
-            if (pageNum >= pdfDoc.numPages) return;
+            // If user clicks the loop symbol on the last page, cycle back to the beginning
+            if (pageNum >= pdfDoc.numPages) {
+                pageNum = 1;
+                queueRenderPage(pageNum);
+                return;
+            }
             pageNum++;
             queueRenderPage(pageNum);
         }
 
-        // Add physical keyboard navigation bindings
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft') prevPage();
             if (e.key === 'ArrowRight') nextPage();
         });
 
-        // Monitor browser size changes to adjust scaling parameters instantly
         window.addEventListener('resize', () => {
             if (pdfDoc) queueRenderPage(pageNum);
         });
 
-        // Initialize presentation asset tracking
         pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
             pdfDoc = pdfDoc_;
             renderPage(pageNum);
