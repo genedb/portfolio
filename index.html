@@ -95,8 +95,6 @@
         let baseWidth = 0, baseHeight = 0;
         let isZoomed = false;
         const ZOOM_MULTIPLIER = 2.0;
-        const ARROW_WIDTH = 110;
-        const INNER_OFFSET = 20; // Margin from the image edge when arrows step inside
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -123,7 +121,13 @@
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
-                updateCanvasDimensions();
+                if (isZoomed) {
+                    canvas.style.width = (baseWidth * ZOOM_MULTIPLIER) + 'px';
+                    canvas.style.height = (baseHeight * ZOOM_MULTIPLIER) + 'px';
+                } else {
+                    canvas.style.width = baseWidth + 'px';
+                    canvas.style.height = baseHeight + 'px';
+                }
 
                 const renderContext = {
                     canvasContext: ctx,
@@ -133,60 +137,16 @@
                 const renderTask = page.render(renderContext);
                 renderTask.promise.then(function() {
                     pageRendering = false;
-                    updateArrowPositions();
                     if (pageNumPending !== null) {
                         renderPage(pageNumPending);
                         pageNumPending = null;
                     }
+                    // Reposition arrows to sit perfectly within margins post-render
+                    positionArrows();
                 });
             });
             
             updateContextualRules();
-        }
-
-        function updateCanvasDimensions() {
-            const canvas = document.getElementById('pdf-canvas');
-            if (isZoomed) {
-                canvas.style.width = (baseWidth * ZOOM_MULTIPLIER) + 'px';
-                canvas.style.height = (baseHeight * ZOOM_MULTIPLIER) + 'px';
-            } else {
-                canvas.style.width = baseWidth + 'px';
-                canvas.style.height = baseHeight + 'px';
-            }
-        }
-
-        function updateArrowPositions() {
-            const canvas = document.getElementById('pdf-canvas');
-            const arrowLeft = document.getElementById('arrow-left');
-            const arrowRight = document.getElementById('arrow-right');
-            
-            // Calculate coordinates of the rendering viewport boundaries
-            const rect = canvas.getBoundingClientRect();
-            const windowWidth = window.innerWidth;
-
-            // Compute available dead white space on left and right borders
-            const leftMargin = rect.left > 0 ? rect.left : 0;
-            const rightMargin = windowWidth - (rect.left + rect.width) > 0 ? windowWidth - (rect.left + rect.width) : 0;
-
-            // Left Arrow Dynamic Position Assignment
-            if (leftMargin > ARROW_WIDTH) {
-                // Centre of the blank white area
-                arrowLeft.style.left = (leftMargin / 2 - ARROW_WIDTH / 2) + 'px';
-            } else {
-                // Not enough space outside; pull inside the image bounds with a slight offset
-                const absoluteLeftBound = rect.left > 0 ? rect.left : 0;
-                arrowLeft.style.left = (absoluteLeftBound + INNER_OFFSET) + 'px';
-            }
-
-            // Right Arrow Dynamic Position Assignment
-            if (rightMargin > ARROW_WIDTH) {
-                // Centre of the blank white area
-                arrowRight.style.right = (rightMargin / 2 - ARROW_WIDTH / 2) + 'px';
-            } else {
-                // Not enough space outside; pull inside the image bounds with a slight offset
-                const absoluteRightBound = (rect.left + rect.width) < windowWidth ? (rect.left + rect.width) : windowWidth;
-                arrowRight.style.right = (windowWidth - absoluteRightBound + INNER_OFFSET) + 'px';
-            }
         }
 
         function queueRenderPage(num) {
@@ -215,41 +175,64 @@
         }
 
         function toggleZoom() {
+            // CRITICAL EXCLUSION: Disable zoom completely on first and last pages
+            if (pageNum === 1 || pageNum === pdfDoc.numPages) return;
+
             isZoomed = !isZoomed;
             const wrapper = document.getElementById('scroll-wrapper');
+            const canvas = document.getElementById('pdf-canvas');
 
             if (isZoomed) {
                 wrapper.classList.add('zoomed');
-                updateCanvasDimensions();
+                canvas.style.width = (baseWidth * ZOOM_MULTIPLIER) + 'px';
+                canvas.style.height = (baseHeight * ZOOM_MULTIPLIER) + 'px';
                 
-                const canvas = document.getElementById('pdf-canvas');
                 wrapper.scrollLeft = (canvas.offsetWidth - window.innerWidth) / 2;
                 wrapper.scrollTop = (canvas.offsetHeight - window.innerHeight) / 2;
             } else {
                 resetZoom();
             }
-            updateArrowPositions();
         }
 
         function resetZoom() {
             isZoomed = false;
             const wrapper = document.getElementById('scroll-wrapper');
+            const canvas = document.getElementById('pdf-canvas');
             
             wrapper.classList.remove('zoomed');
-            updateCanvasDimensions();
+            canvas.style.width = baseWidth + 'px';
+            canvas.style.height = baseHeight + 'px';
             
             wrapper.scrollLeft = 0;
             wrapper.scrollTop = 0;
-            updateArrowPositions();
         }
 
         function updateContextualRules() {
             const arrowRight = document.getElementById('arrow-right');
-            
             if (pdfDoc && pageNum === pdfDoc.numPages) {
                 arrowRight.innerHTML = '&#8634;'; 
             } else {
                 arrowRight.innerHTML = '&#8250;'; 
+            }
+        }
+
+        // Dynamically shifts arrows outside the active presentation area based on current asset bounds
+        function positionArrows() {
+            const arrowLeft = document.getElementById('arrow-left');
+            const arrowRight = document.getElementById('arrow-right');
+            const arrowWidth = 110;
+
+            // Calculate the remaining white space margin on either side of the image
+            const horizontalMargin = (window.innerWidth - baseWidth) / 2;
+
+            if (horizontalMargin > arrowWidth + 20) {
+                // If white borders exist, center the arrows perfectly inside them
+                arrowLeft.style.left = ((horizontalMargin - arrowWidth) / 2) + 'px';
+                arrowRight.style.right = ((horizontalMargin - arrowWidth) / 2) + 'px';
+            } else {
+                // Fallback to screen margins if the presentation fills the screen width entirely
+                arrowLeft.style.left = '20px';
+                arrowRight.style.right = '20px';
             }
         }
 
@@ -273,11 +256,47 @@
                 arrowRight.style.opacity = '1';
                 document.body.style.cursor = 'pointer';
             } else {
-                document.body.style.cursor = isZoomed ? 'var(--cursor-zoom-out)' : 'var(--cursor-zoom-in)';
+                // Set cursor rules based on page positioning restrictions
+                if (pageNum === 1 || (pdfDoc && pageNum === pdfDoc.numPages)) {
+                    document.body.style.cursor = 'auto'; // Normal pointer on first and last page
+                } else {
+                    document.body.style.cursor = isZoomed ? 'var(--cursor-zoom-out)' : 'var(--cursor-zoom-in)';
+                }
             }
         });
 
         document.addEventListener('click', (e) => {
             const wrapper = document.getElementById('scroll-wrapper');
             
-            if (e.clientX >= wrapper.clientWidth || e.clientY
+            if (e.clientX >= wrapper.clientWidth || e.clientY >= wrapper.clientHeight) {
+                return;
+            }
+
+            const x = e.clientX;
+            const width = window.innerWidth;
+            
+            if (x < width * 0.3) {
+                if (pageNum > 1) onPrevPage();
+            } else if (x > width * 0.7) {
+                onNextPage();
+            } else {
+                toggleZoom();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            resetZoom();
+            if (pdfDoc) {
+                queueRenderPage(pageNum);
+            }
+        });
+
+        pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+            pdfDoc = pdfDoc_;
+            renderPage(pageNum);
+        }).catch(function(error) {
+            console.error('Error loading presentation framework:', error);
+        });
+    </script>
+</body>
+</html>
