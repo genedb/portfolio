@@ -16,50 +16,58 @@
         body, html {
             width: 100%;
             height: 100%;
-            background-color: #ffffff; /* Seamless pure white background */
-            overflow: hidden;
+            background-color: #ffffff; /* Seamless white outer background */
             font-family: sans-serif;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
         }
-        /* Three-column grid layout across the entire browser window boundaries */
-        #viewport-grid {
+        
+        /* Master outer viewport framework allowing native browser scrolling when zoomed in */
+        #viewport-container {
             width: 100%;
             height: 100%;
-            display: grid;
-            grid-template-columns: 30% 40% 30%;
             position: relative;
-        }
-        /* Presentation alignment frame centered underneath the navigation grid */
-        #presentation-wrapper {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            overflow: auto; /* Allows scrollbars to naturally appear ONLY when zoomed in past window bounds */
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 5;
-            pointer-events: none;
         }
-        #pdf-canvas {
+
+        /* Central canvas housing frame */
+        #canvas-wrapper {
+            position: relative;
+            z-index: 5;
+            display: block;
+        }
+        canvas {
             display: block;
             max-width: 100%;
             max-height: 100%;
         }
 
-        /* Hover interaction zones covering presentation and outer white space */
+        /* Fixed interaction UI overlay layer that remains pinned to window boundaries during zoom */
+        #ui-overlay-grid {
+            position: fixed; /* Keeps UI from drifting away when scrolling into zoomed areas */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 30% 40% 30%;
+            z-index: 50;
+            pointer-events: none; /* Passes clicks directly down to the active triggers */
+        }
+
+        /* Responsive hover interaction structures */
         .nav-zone {
             height: 100%;
             display: flex;
             align-items: center;
             cursor: pointer;
-            z-index: 20;
-            position: relative;
-            visibility: visible; /* Modified dynamically by JavaScript */
+            pointer-events: auto; /* Re-activates clickability on the outer margins */
+            visibility: visible;
         }
         .left-zone {
             grid-column: 1;
@@ -72,8 +80,196 @@
             padding-right: 40px;
         }
 
-        /* Doubled Fading Navigation Arrows */
+        /* Adaptive control arrows scaled using responsive viewport units */
         .arrow {
+            font-size: 5vw; /* Scales dynamically based on screen real estate, independent of layout zoom text parameters */
+            font-weight: 300;
+            color: #111111;
+            background-color: rgba(255, 255, 255, 0.95);
+            width: 7vw;
+            height: 7vw;
+            min-width: 70px;
+            min-height: 70px;
+            max-width: 120px;
+            max-height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.06);
+            padding-bottom: 1vw;
+        }
+        
+        .arrow.loop-symbol {
+            padding-bottom: 0px;
+            font-size: 4vw;
+        }
+
+        .left-zone:hover .arrow {
+            opacity: 1;
+            transform: translateX(20px);
+        }
+        .right-zone:hover .arrow {
+            opacity: 1;
+            transform: translateX(-20px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-overlay-grid">
+        <div id="left-trigger" class="nav-zone left-zone" onclick="prevPage()">
+            <div class="arrow">&#8249;</div>
+        </div>
+        <div></div>
+        <div id="right-trigger" class="nav-zone right-zone" onclick="nextPage()">
+            <div id="right-arrow-icon" class="arrow">&#8250;</div>
+        </div>
+    </div>
+
+    <div id="viewport-container">
+        <div id="canvas-wrapper">
+            <canvas id="pdf-canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const url = 'SVLB A4 300.pdf'; 
+
+        let pdfDoc = null,
+            pageNum = 1,
+            pageIsRendering = false,
+            pageNumPending = null,
+            currentRenderTask = null;
+
+        const canvas = document.getElementById('pdf-canvas'),
+              ctx = canvas.getContext('2d'),
+              leftTrigger = document.getElementById('left-trigger'),
+              rightTrigger = document.getElementById('right-trigger'),
+              rightArrowIcon = document.getElementById('right-arrow-icon');
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        function updateNavigationUI() {
+            if (!pdfDoc) return;
+
+            if (pageNum === 1) {
+                leftTrigger.style.visibility = 'hidden';
+            } else {
+                leftTrigger.style.visibility = 'visible';
+            }
+
+            if (pageNum === pdfDoc.numPages) {
+                rightArrowIcon.innerHTML = '&#8634;'; 
+                rightArrowIcon.classList.add('loop-symbol');
+            } else {
+                rightArrowIcon.innerHTML = '&#8250;'; 
+                rightArrowIcon.classList.remove('loop-symbol');
+            }
+        }
+
+        function renderPage(num) {
+            pageIsRendering = true;
+            updateNavigationUI();
+
+            // Cancel any active drawing calculations if a user zooms rapidly or skips ahead
+            if (currentRenderTask !== null) {
+                currentRenderTask.cancel();
+            }
+
+            pdfDoc.getPage(num).then(page => {
+                // Read base layout viewport dimensions
+                const unscaledViewport = page.getViewport({ scale: 1 });
+                
+                // Track dynamic native window sizes to govern fit parameters
+                const widthScale = window.innerWidth / unscaledViewport.width;
+                const heightScale = window.innerHeight / unscaledViewport.height;
+                const baseScale = Math.min(widthScale, heightScale);
+
+                // Multiply the scale by devicePixelRatio (handles Mac Retina vs Windows DPI variations instantly)
+                const deviceScale = window.devicePixelRatio || 1;
+                const finalScale = baseScale * deviceScale;
+
+                const dynamicViewport = page.getViewport({ scale: finalScale });
+                
+                // Assign absolute pixel geometry back to canvas context elements
+                canvas.width = Math.floor(dynamicViewport.width);
+                canvas.height = Math.floor(dynamicViewport.height);
+                
+                // Set CSS display properties down to layout viewport dimensions to support crisp zoom levels
+                canvas.style.width = Math.floor(dynamicViewport.width / deviceScale) + "px";
+                canvas.style.height = Math.floor(dynamicViewport.height / deviceScale) + "px";
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: dynamicViewport
+                };
+
+                currentRenderTask = page.render(renderContext);
+                
+                currentRenderTask.promise.then(() => {
+                    pageIsRendering = false;
+                    currentRenderTask = null;
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                }).catch(err => {
+                    // Catch intentional draw cancellations cleanly during zoom actions
+                    if (err.name === 'HeadingToNextPage' || err.name === 'RenderingCancelledException') {
+                        pageIsRendering = false;
+                    }
+                });
+            });
+        }
+
+        function queueRenderPage(num) {
+            if (pageIsRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        function prevPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+
+        function nextPage() {
+            if (pageNum >= pdfDoc.numPages) {
+                pageNum = 1;
+                queueRenderPage(pageNum);
+                return;
+            }
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') prevPage();
+            if (e.key === 'ArrowRight') nextPage();
+        });
+
+        // Use a lightweight debounce tracker to capture browser-level Zoom Actions cleanly
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (pdfDoc) renderPage(pageNum);
+            }, 100); // 100ms interval cleanly updates vector drawings without stuttering
+        });
+
+        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+            pdfDoc = pdfDoc_;
+            renderPage(pageNum);
+        });
+    </script>
+</body>
+</html>        .arrow {
             font-size: 6rem;
             font-weight: 300;
             color: #111111;
