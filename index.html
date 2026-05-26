@@ -6,7 +6,6 @@
     <title>Gene Dubovoy - Portfolio</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf_viewer.min.css">
 
     <style>
         * {
@@ -17,110 +16,107 @@
         body, html {
             width: 100%;
             height: 100%;
-            background-color: #ffffff; /* Seamless pure white background across all viewports */
+            background-color: #ffffff; /* Seamless pure white background */
             overflow: hidden;
             font-family: sans-serif;
+            /* Completely disable text selection across the site */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
-        /* Outer master positioning grid */
-        #viewport-wrapper {
+        /* Three-column grid layout across the entire browser window boundaries */
+        #viewport-grid {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 30% 40% 30%; /* Left/Right zones span 30% each, covering white spaces */
+            position: relative;
+        }
+        /* Presentation alignment frame centered underneath the navigation grid */
+        #presentation-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            position: relative;
+            z-index: 5;
+            pointer-events: none; /* Allows hover clicks to pass cleanly through the wrapper */
         }
-        /* Presentation alignment box holding the artwork layers */
-        .page-container {
-            position: relative;
-            display: block;
-            width: auto;
-            height: auto;
-        }
-        canvas {
+        #pdf-canvas {
             display: block;
             max-width: 100%;
             max-height: 100%;
-            z-index: 5;
-        }
-        /* High-priority text layer mapped directly on top of the drawing path */
-        .textLayer {
-            position: absolute;
-            left: 0;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            overflow: hidden;
-            opacity: 1;
-            line-height: 1.0;
-            mix-blend-mode: multiply;
-            z-index: 25; /* Forces Safari to prioritize text highlighting over canvas elements */
-            pointer-events: auto; /* Activates structural cursor interactions */
-        }
-        .textLayer ::selection {
-            background: rgba(0, 0, 255, 0.15); /* Clean standard selection background */
         }
 
-        /* Hover interaction zones locked tightly to the artwork borders */
+        /* Hover interaction zones covering presentation and outer white space */
         .nav-zone {
-            position: absolute;
-            top: 0;
-            width: 15%; /* Spans exactly 15% width of the presentation sheet */
             height: 100%;
             display: flex;
             align-items: center;
-            justify-content: center;
             cursor: pointer;
-            z-index: 40; /* Sits completely on top to register clicks and hovers instantly */
+            z-index: 20; /* Sits over the top layer to register hovers and clicks instantly */
+            position: relative;
         }
-        .left-zone { left: 0; }
-        .right-zone { right: 0; }
+        .left-zone {
+            grid-column: 1;
+            justify-content: flex-start;
+            padding-left: 40px; /* Spacing from the absolute edge of the monitor */
+        }
+        .right-zone {
+            grid-column: 3;
+            justify-content: flex-end;
+            padding-right: 40px;
+        }
 
-        /* Fading vector control arrows */
+        /* Doubled Fading Navigation Arrows */
         .arrow {
-            font-size: 3rem;
+            font-size: 6rem; /* Doubled symbol size */
+            font-weight: 300;
             color: #111111;
             background-color: rgba(255, 255, 255, 0.95);
-            width: 55px;
-            height: 55px;
+            width: 110px; /* Doubled container dimensions */
+            height: 110px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            user-select: none;
-            pointer-events: none; /* Allows clicks to pass through straight to the navigation zone */
-            box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+            padding-bottom: 12px; /* Visual vertical optical alignment for chevrons */
         }
         .left-zone:hover .arrow {
             opacity: 1;
-            transform: translateX(15px);
+            transform: translateX(20px);
         }
         .right-zone:hover .arrow {
             opacity: 1;
-            transform: translateX(-15px);
+            transform: translateX(-20px);
         }
     </style>
 </head>
 <body>
 
-    <div id="viewport-wrapper">
-        <div class="page-container" id="page-container">
-            <div class="nav-zone left-zone" onclick="prevPage()">
-                <div class="arrow">&#8249;</div>
-            </div>
-            <div class="nav-zone right-zone" onclick="nextPage()">
-                <div class="arrow">&#8250;</div>
-            </div>
-
-            <canvas id="pdf-canvas"></canvas>
-            <div id="text-layer" class="textLayer"></div>
+    <div id="viewport-grid">
+        <div class="nav-zone left-zone" onclick="prevPage()">
+            <div class="arrow">&#8249;</div>
+        </div>
+        <div></div>
+        <div class="nav-zone right-zone" onclick="nextPage()">
+            <div class="arrow">&#8250;</div>
         </div>
     </div>
 
+    <div id="presentation-wrapper">
+        <canvas id="pdf-canvas"></canvas>
+    </div>
+
     <script>
-        const url = 'SVLB.pdf'; 
+        const url = 'SVLB'; 
 
         let pdfDoc = null,
             pageNum = 1,
@@ -128,9 +124,7 @@
             pageNumPending = null;
 
         const canvas = document.getElementById('pdf-canvas'),
-              ctx = canvas.getContext('2d'),
-              container = document.getElementById('page-container'),
-              textLayerDiv = document.getElementById('text-layer');
+              ctx = canvas.getContext('2d');
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
@@ -138,7 +132,7 @@
             pageIsRendering = true;
 
             pdfDoc.getPage(num).then(page => {
-                // Calculate scale profiles to align boundaries tightly to window sizes
+                // Calculate scale to lock boundaries tightly to window configurations
                 const viewport = page.getViewport({ scale: 1 });
                 const widthScale = window.innerWidth / viewport.width;
                 const heightScale = window.innerHeight / viewport.height;
@@ -146,20 +140,13 @@
 
                 const dynamicViewport = page.getViewport({ scale: optimalScale });
                 
-                // Track physical device pixel scaling properties natively (for crisp Retina lines)
+                // Track physical device pixel scaling properties natively for Retina display sharpness
                 const outputScale = window.devicePixelRatio || 1;
                 
-                // Set explicit element dimensions to lock navigation components precisely to drawing bounds
-                const canvasWidth = Math.floor(dynamicViewport.width);
-                const canvasHeight = Math.floor(dynamicViewport.height);
-
-                container.style.width = canvasWidth + "px";
-                container.style.height = canvasHeight + "px";
-
-                canvas.width = Math.floor(canvasWidth * outputScale);
-                canvas.height = Math.floor(canvasHeight * outputScale);
-                canvas.style.width = "100%";
-                canvas.style.height = "100%";
+                canvas.width = Math.floor(dynamicViewport.width * outputScale);
+                canvas.height = Math.floor(dynamicViewport.height * outputScale);
+                canvas.style.width = Math.floor(dynamicViewport.width) + "px";
+                canvas.style.height = Math.floor(dynamicViewport.height) + "px";
 
                 const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
@@ -169,28 +156,9 @@
                     transform: transform
                 };
 
-                // Execute crisp vector drawing path
-                const renderTask = page.render(renderContext);
-                
-                renderTask.promise.then(() => {
+                // Execute rendering process directly to the active layout canvas
+                page.render(renderContext).promise.then(() => {
                     pageIsRendering = false;
-                    
-                    // Flush lingering text arrays
-                    textLayerDiv.innerHTML = '';
-                    textLayerDiv.style.width = "100%";
-                    textLayerDiv.style.height = "100%";
-
-                    // Extract text vectors out of presentation sheet layout
-                    return page.getTextContent();
-                }).then(textContent => {
-                    // Render interactive, selectable layer natively above the drawing canvas
-                    return pdfjsLib.renderTextLayer({
-                        textContentSource: textContent,
-                        container: textLayerDiv,
-                        viewport: dynamicViewport,
-                        textDivs: []
-                    }).promise;
-                }).then(() => {
                     if (pageNumPending !== null) {
                         renderPage(pageNumPending);
                         pageNumPending = null;
@@ -219,18 +187,18 @@
             queueRenderPage(pageNum);
         }
 
-        // Add standard physical layout key listeners
+        // Add physical keyboard navigation bindings
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft') prevPage();
             if (e.key === 'ArrowRight') nextPage();
         });
 
-        // Trigger vector adjustments immediately upon screen size changes
+        // Monitor browser size changes to adjust scaling parameters instantly
         window.addEventListener('resize', () => {
             if (pdfDoc) queueRenderPage(pageNum);
         });
 
-        // Access and initialize target presentation structure
+        // Initialize presentation asset tracking
         pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
             pdfDoc = pdfDoc_;
             renderPage(pageNum);
