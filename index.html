@@ -102,18 +102,14 @@
             width: 100%;
             height: 100%;
             z-index: 5;
-            overflow: hidden; /* JavaScript switches this to auto/scroll when zoomed */
+            overflow: hidden; /* Changes dynamically to 'auto' via script when zoomed */
             display: flex;
             justify-content: center;
             align-items: center;
         }
         #canvas-container {
             position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: center center; /* Locks vector zoom anchor precisely to the center axis */
+            display: block;
         }
         #pdf-canvas {
             display: block;
@@ -123,11 +119,11 @@
         
         /* Layout overrides activated upon shifting into 200% magnification mode */
         #presentation-wrapper.scrollable {
-            overflow: auto; /* Unlocks native trackpad and scrollbar mechanics globally */
-            display: block; /* Disables parent flex-centering to allow true scroll heights to register */
+            overflow: auto; /* Natively unlocks trackpad pan gestures and scrollbars */
+            display: block; /* Disables flexbox alignment centering so layouts scroll accurately */
         }
         #presentation-wrapper.scrollable #canvas-container {
-            margin: 0 auto; /* Handles proper horizontal baseline centering during deep pans */
+            margin: auto; /* Automatically balances canvas positioning inside deep margin offsets */
         }
     </style>
 </head>
@@ -150,6 +146,7 @@
     </div>
 
     <script>
+        // Updated target filename verbatim 
         const url = 'SVLB.pdf'; 
 
         let pdfDoc = null,
@@ -169,7 +166,7 @@
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // Prevent standard trackpad micro-zooms out past initial bounds
+        // Discard external browser trackpad scaling attempts below 100%
         window.addEventListener('wheel', e => {
             if (e.ctrlKey && e.deltaY < 0) {
                 if (window.visualViewport.scale <= 1) {
@@ -197,7 +194,7 @@
             }
         }
 
-        // Toggle Zoom Matrix Engine
+        // Toggle structural magnification levels
         function toggleZoom() {
             if (!pdfDoc || pageIsRendering) return;
             
@@ -205,42 +202,18 @@
             
             if (isZoomed) {
                 zoomTrigger.classList.add('zoomed');
-                
-                // Calculate current screen footprints before applying overflow overrides
-                const currentWidth = container.clientWidth;
-                const currentHeight = container.clientHeight;
-                
-                // Force wrapper scroll boundaries active
                 wrapper.classList.add('scrollable');
-                
-                // Apply a crisp inline vector 200% transform centered outwards
-                container.style.transform = 'scale(2.0)';
-                
-                // Expand container margins so scroll bars read the newly scaled boundaries correctly
-                container.style.marginTop = (currentHeight / 2) + 'px';
-                container.style.marginBottom = (currentHeight / 2) + 'px';
-                
-                // Center the scroll view coordinates instantly upon zoom activation
-                setTimeout(() => {
-                    wrapper.scrollLeft = (wrapper.scrollWidth - window.innerWidth) / 2;
-                    wrapper.scrollTop = (wrapper.scrollHeight - window.innerHeight) / 2;
-                }, 10);
-
+                renderPage(pageNum, 2.0); // Forces a true structural re-render at 200% scale
             } else {
                 zoomTrigger.classList.remove('zoomed');
-                
-                // Reset structural transformation styles down to baseline
-                container.style.transform = 'none';
-                container.style.marginTop = '0px';
-                container.style.marginBottom = '0px';
-                
                 wrapper.classList.remove('scrollable');
                 wrapper.scrollLeft = 0; 
                 wrapper.scrollTop = 0;
+                renderPage(pageNum, 1.0);
             }
         }
 
-        function renderPage(num) {
+        function renderPage(num, zoomFactor = 1.0) {
             pageIsRendering = true;
             updateNavigationUI();
 
@@ -248,7 +221,7 @@
                 const viewport = page.getViewport({ scale: 1 });
                 const widthScale = window.innerWidth / viewport.width;
                 const heightScale = window.innerHeight / viewport.height;
-                const optimalScale = Math.min(widthScale, heightScale);
+                const optimalScale = Math.min(widthScale, heightScale) * zoomFactor;
 
                 const dynamicViewport = page.getViewport({ scale: optimalScale });
                 const outputScale = window.devicePixelRatio || 1;
@@ -256,6 +229,7 @@
                 const targetWidth = Math.floor(dynamicViewport.width);
                 const targetHeight = Math.floor(dynamicViewport.height);
 
+                // Forces hard layout footprint sizes into the DOM elements to unlock scroll tracking
                 container.style.width = targetWidth + "px";
                 container.style.height = targetHeight + "px";
 
@@ -272,8 +246,15 @@
 
                 page.render(renderContext).promise.then(() => {
                     pageIsRendering = false;
+                    
+                    // Natively scroll directly to the exact horizontal and vertical middle axes when zoomed
+                    if (isZoomed) {
+                        wrapper.scrollLeft = (wrapper.scrollWidth - window.innerWidth) / 2;
+                        wrapper.scrollTop = (wrapper.scrollHeight - window.innerHeight) / 2;
+                    }
+
                     if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
+                        renderPage(pageNumPending, isZoomed ? 2.0 : 1.0);
                         pageNumPending = null;
                     }
                 });
@@ -284,7 +265,7 @@
             if (pageIsRendering) {
                 pageNumPending = num;
             } else {
-                renderPage(num);
+                renderPage(num, isZoomed ? 2.0 : 1.0);
             }
         }
 
@@ -311,9 +292,6 @@
             if (isZoomed) {
                 isZoomed = false;
                 zoomTrigger.classList.remove('zoomed');
-                container.style.transform = 'none';
-                container.style.marginTop = '0px';
-                container.style.marginBottom = '0px';
                 wrapper.classList.remove('scrollable');
                 wrapper.scrollLeft = 0;
                 wrapper.scrollTop = 0;
