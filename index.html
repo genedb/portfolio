@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=3.0">
     <title>Gene Dubovoy - Portfolio</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -16,57 +16,49 @@
         body, html {
             width: 100%;
             height: 100%;
-            background-color: #ffffff; /* Seamless white outer background */
+            background-color: #ffffff; /* Seamless pure white background */
+            overflow: hidden;
             font-family: sans-serif;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
         }
-        
-        /* Master outer viewport framework allowing native browser scrolling when zoomed in */
-        #viewport-container {
+        /* Three-column grid layout across the entire browser window boundaries */
+        #viewport-grid {
             width: 100%;
             height: 100%;
+            display: grid;
+            grid-template-columns: 30% 40% 30%;
             position: relative;
-            overflow: auto; /* Allows scrollbars to naturally appear ONLY when zoomed in past window bounds */
+        }
+        /* Presentation alignment frame centered underneath the navigation grid */
+        #presentation-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-
-        /* Central canvas housing frame */
-        #canvas-wrapper {
-            position: relative;
             z-index: 5;
-            display: block;
+            pointer-events: none;
         }
-        canvas {
+        #pdf-canvas {
             display: block;
             max-width: 100%;
             max-height: 100%;
         }
 
-        /* Fixed interaction UI overlay layer that remains pinned to window boundaries during zoom */
-        #ui-overlay-grid {
-            position: fixed; /* Keeps UI from drifting away when scrolling into zoomed areas */
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: grid;
-            grid-template-columns: 30% 40% 30%;
-            z-index: 50;
-            pointer-events: none; /* Passes clicks directly down to the active triggers */
-        }
-
-        /* Responsive hover interaction structures */
+        /* Hover interaction zones covering presentation and outer white space */
         .nav-zone {
             height: 100%;
             display: flex;
             align-items: center;
             cursor: pointer;
-            pointer-events: auto; /* Re-activates clickability on the outer margins */
+            z-index: 20;
+            position: relative;
             visibility: visible;
         }
         .left-zone {
@@ -80,31 +72,28 @@
             padding-right: 40px;
         }
 
-        /* Adaptive control arrows scaled using responsive viewport units */
+        /* Fixed Navigation Arrows (Using px instead of rem to survive browser zoom changes) */
         .arrow {
-            font-size: 5vw; /* Scales dynamically based on screen real estate, independent of layout zoom text parameters */
+            font-size: 96px; /* Explicit pixel value locks size during native zoom clicks */
             font-weight: 300;
             color: #111111;
             background-color: rgba(255, 255, 255, 0.95);
-            width: 7vw;
-            height: 7vw;
-            min-width: 70px;
-            min-height: 70px;
-            max-width: 120px;
-            max-height: 120px;
+            width: 110px; 
+            height: 110px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             transition: opacity 0.2s ease, transform 0.2s ease;
-            box-shadow: 0 6px 25px rgba(0,0,0,0.06);
-            padding-bottom: 1vw;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+            padding-bottom: 16px;
         }
         
+        /* Fixed adjustments for the loop back symbol text alignment */
         .arrow.loop-symbol {
             padding-bottom: 0px;
-            font-size: 4vw;
+            font-size: 72px;
         }
 
         .left-zone:hover .arrow {
@@ -119,7 +108,7 @@
 </head>
 <body>
 
-    <div id="ui-overlay-grid">
+    <div id="viewport-grid">
         <div id="left-trigger" class="nav-zone left-zone" onclick="prevPage()">
             <div class="arrow">&#8249;</div>
         </div>
@@ -129,10 +118,8 @@
         </div>
     </div>
 
-    <div id="viewport-container">
-        <div id="canvas-wrapper">
-            <canvas id="pdf-canvas"></canvas>
-        </div>
+    <div id="presentation-wrapper">
+        <canvas id="pdf-canvas"></canvas>
     </div>
 
     <script>
@@ -141,8 +128,7 @@
         let pdfDoc = null,
             pageNum = 1,
             pageIsRendering = false,
-            pageNumPending = null,
-            currentRenderTask = null;
+            pageNumPending = null;
 
         const canvas = document.getElementById('pdf-canvas'),
               ctx = canvas.getContext('2d'),
@@ -151,6 +137,16 @@
               rightArrowIcon = document.getElementById('right-arrow-icon');
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        // Block the browser from zooming out past 100% via wheel/trackpad inputs
+        window.addEventListener('wheel', e => {
+            if (e.ctrlKey && e.deltaY < 0) {
+                // Catches and discards pinch-to-zoom-out actions
+                if (window.visualViewport.scale <= 1) {
+                    e.preventDefault();
+                }
+            }
+        }, { passive: false });
 
         function updateNavigationUI() {
             if (!pdfDoc) return;
@@ -174,52 +170,33 @@
             pageIsRendering = true;
             updateNavigationUI();
 
-            // Cancel any active drawing calculations if a user zooms rapidly or skips ahead
-            if (currentRenderTask !== null) {
-                currentRenderTask.cancel();
-            }
-
             pdfDoc.getPage(num).then(page => {
-                // Read base layout viewport dimensions
-                const unscaledViewport = page.getViewport({ scale: 1 });
-                
-                // Track dynamic native window sizes to govern fit parameters
-                const widthScale = window.innerWidth / unscaledViewport.width;
-                const heightScale = window.innerHeight / unscaledViewport.height;
-                const baseScale = Math.min(widthScale, heightScale);
+                const viewport = page.getViewport({ scale: 1 });
+                const widthScale = window.innerWidth / viewport.width;
+                const heightScale = window.innerHeight / viewport.height;
+                const optimalScale = Math.min(widthScale, heightScale);
 
-                // Multiply the scale by devicePixelRatio (handles Mac Retina vs Windows DPI variations instantly)
-                const deviceScale = window.devicePixelRatio || 1;
-                const finalScale = baseScale * deviceScale;
+                const dynamicViewport = page.getViewport({ scale: optimalScale });
+                const outputScale = window.devicePixelRatio || 1;
+                
+                canvas.width = Math.floor(dynamicViewport.width * outputScale);
+                canvas.height = Math.floor(dynamicViewport.height * outputScale);
+                canvas.style.width = Math.floor(dynamicViewport.width) + "px";
+                canvas.style.height = Math.floor(dynamicViewport.height) + "px";
 
-                const dynamicViewport = page.getViewport({ scale: finalScale });
-                
-                // Assign absolute pixel geometry back to canvas context elements
-                canvas.width = Math.floor(dynamicViewport.width);
-                canvas.height = Math.floor(dynamicViewport.height);
-                
-                // Set CSS display properties down to layout viewport dimensions to support crisp zoom levels
-                canvas.style.width = Math.floor(dynamicViewport.width / deviceScale) + "px";
-                canvas.style.height = Math.floor(dynamicViewport.height / deviceScale) + "px";
+                const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
                 const renderContext = {
                     canvasContext: ctx,
-                    viewport: dynamicViewport
+                    viewport: dynamicViewport,
+                    transform: transform
                 };
 
-                currentRenderTask = page.render(renderContext);
-                
-                currentRenderTask.promise.then(() => {
+                page.render(renderContext).promise.then(() => {
                     pageIsRendering = false;
-                    currentRenderTask = null;
                     if (pageNumPending !== null) {
                         renderPage(pageNumPending);
                         pageNumPending = null;
-                    }
-                }).catch(err => {
-                    // Catch intentional draw cancellations cleanly during zoom actions
-                    if (err.name === 'HeadingToNextPage' || err.name === 'RenderingCancelledException') {
-                        pageIsRendering = false;
                     }
                 });
             });
@@ -252,15 +229,15 @@
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft') prevPage();
             if (e.key === 'ArrowRight') nextPage();
+            
+            // Block native browser hotkeys for zooming out (Cmd/Ctrl + Minus)
+            if ((e.metaKey || e.ctrlKey) && (e.key === '-' || e.key === '_')) {
+                e.preventDefault();
+            }
         });
 
-        // Use a lightweight debounce tracker to capture browser-level Zoom Actions cleanly
-        let resizeTimeout;
         window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                if (pdfDoc) renderPage(pageNum);
-            }, 100); // 100ms interval cleanly updates vector drawings without stuttering
+            if (pdfDoc) queueRenderPage(pageNum);
         });
 
         pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
