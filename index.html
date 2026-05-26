@@ -102,11 +102,11 @@
 <body>
 
     <div id="viewport-grid">
-        <div class="nav-zone left-zone" onclick="prevPage()">
+        <div id="left-nav" class="nav-zone left-zone" onclick="prevPage()">
             <div class="arrow">&#8249;</div>
         </div>
         <div></div>
-        <div class="nav-zone right-zone" onclick="nextPage()">
+        <div id="right-nav" class="nav-zone right-zone" onclick="nextPage()">
             <div class="arrow">&#8250;</div>
         </div>
     </div>
@@ -124,12 +124,34 @@
             pageNumPending = null;
 
         const canvas = document.getElementById('pdf-canvas'),
-              ctx = canvas.getContext('2d');
+              ctx = canvas.getContext('2d'),
+              leftNav = document.getElementById('left-nav'),
+              rightNav = document.getElementById('right-nav');
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
+        // Manage visibility of navigation arrow containers dynamically based on context
+        function updateArrowVisibility() {
+            if (!pdfDoc) return;
+            
+            // First page hides left arrow completely
+            if (pageNum <= 1) {
+                leftNav.style.display = 'none';
+            } else {
+                leftNav.style.display = 'flex';
+            }
+
+            // Last page hides right arrow completely
+            if (pageNum >= pdfDoc.numPages) {
+                rightNav.style.display = 'none';
+            } else {
+                rightNav.style.display = 'flex';
+            }
+        }
+
         function renderPage(num) {
             pageIsRendering = true;
+            updateArrowVisibility();
 
             pdfDoc.getPage(num).then(page => {
                 // Calculate scale to lock boundaries tightly to window configurations
