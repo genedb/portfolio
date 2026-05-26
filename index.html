@@ -16,7 +16,7 @@
         body, html {
             width: 100%;
             height: 100%;
-            background-color: #ffffff; /* Seamless pure white background */
+            background-color: #ffffff; /* Pure white background */
             overflow: hidden;
             font-family: sans-serif;
             user-select: none;
@@ -24,7 +24,7 @@
             -moz-user-select: none;
             -ms-user-select: none;
         }
-        /* Master interaction layer grid pinned strictly above the viewport */
+        /* Master interaction grid layer pinned directly above the viewport */
         #viewport-grid {
             width: 100%;
             height: 100%;
@@ -48,7 +48,7 @@
             justify-content: flex-start;
             padding-left: 40px;
         }
-        /* Middle Click-to-Zoom Activation Strip */
+        /* Middle Click-to-Zoom Trigger Zone */
         .zoom-zone {
             grid-column: 2;
             height: 100%;
@@ -94,7 +94,7 @@
             transform: translateX(-20px);
         }
 
-        /* Core scroll-panning structural container box */
+        /* Primary hardware-accelerated scroll viewport wrapper */
         #presentation-wrapper {
             position: absolute;
             top: 0;
@@ -102,28 +102,24 @@
             width: 100%;
             height: 100%;
             z-index: 5;
-            overflow: hidden; /* Becomes scrollable dynamically via JS */
+            overflow: hidden; /* Unlocks to 'auto' dynamically via JavaScript */
+        }
+        
+        /* Master structural framing layout container */
+        #canvas-container {
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-        #canvas-container {
-            position: relative;
-            display: block;
-        }
-        #pdf-canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center center; /* Forces zoom expansion straight from the center midpoint */
         }
         
-        /* Layout overrides activated upon shifting into 200% magnification mode */
-        #presentation-wrapper.scrollable {
-            overflow: auto !important; /* Unlocks native trackpad scrolling completely */
-            display: block !important; /* Disables flexbox centering to allow true layout heights to map */
-        }
-        #presentation-wrapper.scrollable #canvas-container {
-            margin: 0 auto; /* Keeps horizontal layout perfectly centered when trackpad bounds clear */
+        #pdf-canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
         }
     </style>
 </head>
@@ -174,7 +170,7 @@
             }
         }, { passive: false });
 
-        // Update active navigation parameters
+        // Evaluate arrow visibility rules
         function updateNavigationUI() {
             if (!pdfDoc) return;
 
@@ -193,7 +189,7 @@
             }
         }
 
-        // Toggle structural magnification levels
+        // Native 2D Hardware Scale Transform Toggle
         function toggleZoom() {
             if (!pdfDoc || pageIsRendering) return;
             
@@ -201,18 +197,44 @@
             
             if (isZoomed) {
                 zoomTrigger.classList.add('zoomed');
-                wrapper.classList.add('scrollable');
-                renderPage(pageNum, 2.0); // Forces a true physical element scale change in pixels
+                
+                // Instantly open the scroll container overflow parameters
+                wrapper.style.overflow = 'auto';
+                
+                // Expand container limits with an absolute 200% CSS Transform
+                container.style.transform = 'scale(2.0)';
+                
+                // Adjust internal dimensions to clear scrolling tracks natively
+                container.style.width = '200%';
+                container.style.height = '200%';
+                container.style.position = 'absolute';
+                container.style.top = '-50%';
+                container.style.left = '-50%';
+                
+                // Anchor scroll positioning straight to the geometric midpoint
+                setTimeout(() => {
+                    wrapper.scrollLeft = (wrapper.scrollWidth - window.innerWidth) / 2;
+                    wrapper.scrollTop = (wrapper.scrollHeight - window.innerHeight) / 2;
+                }, 5);
+
             } else {
                 zoomTrigger.classList.remove('zoomed');
-                wrapper.classList.remove('scrollable');
+                
+                // Reset layout structure cleanly back to baseline full-screen snap boundaries
+                container.style.transform = 'none';
+                container.style.width = '100%';
+                container.style.height = '100%';
+                container.style.position = 'relative';
+                container.style.top = 'auto';
+                container.style.left = 'auto';
+                
+                wrapper.style.overflow = 'hidden';
                 wrapper.scrollLeft = 0; 
                 wrapper.scrollTop = 0;
-                renderPage(pageNum, 1.0);
             }
         }
 
-        function renderPage(num, zoomFactor = 1.0) {
+        function renderPage(num) {
             pageIsRendering = true;
             updateNavigationUI();
 
@@ -220,7 +242,7 @@
                 const viewport = page.getViewport({ scale: 1 });
                 const widthScale = window.innerWidth / viewport.width;
                 const heightScale = window.innerHeight / viewport.height;
-                const optimalScale = Math.min(widthScale, heightScale) * zoomFactor;
+                const optimalScale = Math.min(widthScale, heightScale);
 
                 const dynamicViewport = page.getViewport({ scale: optimalScale });
                 const outputScale = window.devicePixelRatio || 1;
@@ -228,12 +250,10 @@
                 const targetWidth = Math.floor(dynamicViewport.width);
                 const targetHeight = Math.floor(dynamicViewport.height);
 
-                // Forces physical layout dimensions directly into the element style nodes
-                container.style.width = targetWidth + "px";
-                container.style.height = targetHeight + "px";
-
                 canvas.width = Math.floor(targetWidth * outputScale);
                 canvas.height = Math.floor(targetHeight * outputScale);
+                canvas.style.width = targetWidth + "px";
+                canvas.style.height = targetHeight + "px";
 
                 const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
@@ -245,15 +265,8 @@
 
                 page.render(renderContext).promise.then(() => {
                     pageIsRendering = false;
-                    
-                    // Natively scroll directly to the exact geometric center when zoomed 
-                    if (isZoomed) {
-                        wrapper.scrollLeft = (wrapper.scrollWidth - window.innerWidth) / 2;
-                        wrapper.scrollTop = (wrapper.scrollHeight - window.innerHeight) / 2;
-                    }
-
                     if (pageNumPending !== null) {
-                        renderPage(pageNumPending, isZoomed ? 2.0 : 1.0);
+                        renderPage(pageNumPending);
                         pageNumPending = null;
                     }
                 });
@@ -264,7 +277,7 @@
             if (pageIsRendering) {
                 pageNumPending = num;
             } else {
-                renderPage(num, isZoomed ? 2.0 : 1.0);
+                renderPage(num);
             }
         }
 
@@ -287,12 +300,17 @@
             queueRenderPage(pageNum);
         }
 
-        // Clean up zoom positioning properties when flipping pages
         function resetZoomOnTurn() {
             if (isZoomed) {
                 isZoomed = false;
                 zoomTrigger.classList.remove('zoomed');
-                wrapper.classList.remove('scrollable');
+                container.style.transform = 'none';
+                container.style.width = '100%';
+                container.style.height = '100%';
+                container.style.position = 'relative';
+                container.style.top = 'auto';
+                container.style.left = 'auto';
+                wrapper.style.overflow = 'hidden';
                 wrapper.scrollLeft = 0;
                 wrapper.scrollTop = 0;
             }
