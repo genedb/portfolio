@@ -19,7 +19,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #ffffff; /* Pure white boundaries */
+            background-color: #ffffff;
             font-family: sans-serif;
             
             /* Disable native text selection highlighting */
@@ -28,7 +28,7 @@
             -moz-user-select: none;
             -ms-user-select: none;
             
-            overflow: hidden; /* Scrolling is managed by the wrapper */
+            overflow: hidden;
         }
 
         #scroll-wrapper {
@@ -41,7 +41,6 @@
             justify-content: center;
         }
 
-        /* Unlocks native scrolling mechanisms when toggled */
         #scroll-wrapper.zoomed {
             overflow: auto;
             align-items: flex-start;
@@ -52,7 +51,7 @@
             display: block;
             border: none;
             box-shadow: none;
-            /* width and height are manipulated directly via inline CSS pixels for exact scale recalculation */
+            /* width and height are manipulated directly via inline CSS pixels */
         }
 
         /* Navigation Arrows */
@@ -62,7 +61,7 @@
             transform: translateY(-50%);
             width: 110px;
             height: 110px;
-            background-color: rgba(245, 245, 245, 0.85); /* Subtle enough for white backgrounds */
+            background-color: rgba(245, 245, 245, 0.85);
             color: #333;
             border-radius: 50%;
             font-size: 96px;
@@ -73,16 +72,16 @@
             opacity: 0;
             transition: opacity 0.3s ease;
             z-index: 1000;
-            padding-bottom: 8px; /* Optical vertical centering for unicode arrows */
+            padding-bottom: 8px; 
             box-sizing: border-box;
         }
 
         #arrow-left {
-            left: calc(15% - 55px); /* Centred inside the 30% left margin */
+            left: calc(15% - 55px);
         }
 
         #arrow-right {
-            right: calc(15% - 55px); /* Centred inside the 30% right margin */
+            right: calc(15% - 55px);
         }
     </style>
 </head>
@@ -96,16 +95,15 @@
     <div id="arrow-right" class="arrow-container">&#8250;</div>
 
     <script>
-        // PDF Configuration
         const url = 'SVLB.pdf';
         let pdfDoc = null,
             pageNum = 1,
             pageRendering = false,
             pageNumPending = null;
         
-        // Scale State
         let baseWidth = 0, baseHeight = 0;
         let isZoomed = false;
+        const ZOOM_MULTIPLIER = 2.0;
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -115,29 +113,35 @@
             pdfDoc.getPage(num).then(function(page) {
                 const viewportUnscaled = page.getViewport({ scale: 1.0 });
                 
-                // Calculate physical layout fit
+                // 1. Calculate physical layout fit at 100% zoom
                 const scaleX = window.innerWidth / viewportUnscaled.width;
                 const scaleY = window.innerHeight / viewportUnscaled.height;
                 const baseScale = Math.min(scaleX, scaleY);
                 
-                // Store 100% viewport dimensions in pixels
+                // Store actual CSS pixel dimensions for the screen layout
                 baseWidth = viewportUnscaled.width * baseScale;
                 baseHeight = viewportUnscaled.height * baseScale;
 
-                // Internally render at 200% so the canvas retains crisp resolution when the layout scales
-                const renderScale = baseScale * 2;
-                const viewport = page.getViewport({ scale: renderScale });
+                // 2. High-DPI & Pre-rendering logic
+                // Fetch the screen's pixel density (e.g., 2 for Retina displays)
+                const dpr = window.devicePixelRatio || 1;
+                
+                // Render the canvas internally at the absolute maximum required resolution:
+                // Base Fit × 200% Zoom Target × Hardware Pixel Density
+                const crispRenderScale = baseScale * ZOOM_MULTIPLIER * dpr;
+                const viewport = page.getViewport({ scale: crispRenderScale });
 
                 const canvas = document.getElementById('pdf-canvas');
                 const ctx = canvas.getContext('2d');
                 
+                // Set the raw, internal resolution of the canvas 
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
-                // Recalculate layout sizes based on zoom mode requirement
+                // 3. Constrain the physical display size using CSS pixels
                 if (isZoomed) {
-                    canvas.style.width = (baseWidth * 2) + 'px';
-                    canvas.style.height = (baseHeight * 2) + 'px';
+                    canvas.style.width = (baseWidth * ZOOM_MULTIPLIER) + 'px';
+                    canvas.style.height = (baseHeight * ZOOM_MULTIPLIER) + 'px';
                 } else {
                     canvas.style.width = baseWidth + 'px';
                     canvas.style.height = baseHeight + 'px';
@@ -179,7 +183,7 @@
         function onNextPage() {
             resetZoom();
             if (pageNum >= pdfDoc.numPages) {
-                pageNum = 1; // Loop back context
+                pageNum = 1;
             } else {
                 pageNum++;
             }
@@ -194,11 +198,10 @@
             if (isZoomed) {
                 wrapper.classList.add('zoomed');
                 
-                // PERFORMANCE RULE: Modifying explicit pixel properties rather than using CSS transform scale
-                canvas.style.width = (baseWidth * 2) + 'px';
-                canvas.style.height = (baseHeight * 2) + 'px';
+                // Scale physical CSS layout properties strictly via pixels
+                canvas.style.width = (baseWidth * ZOOM_MULTIPLIER) + 'px';
+                canvas.style.height = (baseHeight * ZOOM_MULTIPLIER) + 'px';
                 
-                // Autocenter layout logic exactly to the midpoint
                 wrapper.scrollLeft = (canvas.offsetWidth - window.innerWidth) / 2;
                 wrapper.scrollTop = (canvas.offsetHeight - window.innerHeight) / 2;
             } else {
@@ -223,13 +226,12 @@
             const arrowRight = document.getElementById('arrow-right');
             
             if (pdfDoc && pageNum === pdfDoc.numPages) {
-                arrowRight.innerHTML = '&#8634;'; // Last page circular loop back symbol
+                arrowRight.innerHTML = '&#8634;'; 
             } else {
-                arrowRight.innerHTML = '&#8250;'; // Standard next chevron
+                arrowRight.innerHTML = '&#8250;'; 
             }
         }
 
-        // Invisible Mathematical Interaction Grid Logic
         document.addEventListener('mousemove', (e) => {
             const x = e.clientX;
             const width = window.innerWidth;
@@ -240,19 +242,16 @@
             arrowRight.style.opacity = '0';
             
             if (x < width * 0.3) {
-                // LEFT 30% Hover Zone
                 if (pageNum > 1) { 
                     arrowLeft.style.opacity = '1';
                     document.body.style.cursor = 'pointer';
                 } else {
-                    document.body.style.cursor = 'auto'; // Force hide on Page 1
+                    document.body.style.cursor = 'auto'; 
                 }
             } else if (x > width * 0.7) {
-                // RIGHT 30% Hover Zone
                 arrowRight.style.opacity = '1';
                 document.body.style.cursor = 'pointer';
             } else {
-                // CENTRE 40% Hover Zone
                 document.body.style.cursor = isZoomed ? 'var(--cursor-zoom-out)' : 'var(--cursor-zoom-in)';
             }
         });
@@ -260,7 +259,6 @@
         document.addEventListener('click', (e) => {
             const wrapper = document.getElementById('scroll-wrapper');
             
-            // Allow native scrollbars to function without triggering grid clicks
             if (e.clientX >= wrapper.clientWidth || e.clientY >= wrapper.clientHeight) {
                 return;
             }
@@ -277,13 +275,11 @@
             }
         });
 
-        // Recalculates canvas boundaries instantly on browser window resize
         window.addEventListener('resize', () => {
             resetZoom();
             if (pdfDoc) queueRenderPage(pageNum);
         });
 
-        // Initial PDF Load
         pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
             pdfDoc = pdfDoc_;
             renderPage(pageNum);
