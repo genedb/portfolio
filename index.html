@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gene Dubovoy - Portfolio</title>
+    
+    <!-- Load PDF.js from a secure CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff; /* Pure white canvas boundaries */
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        /* Container that forces full screen window boundaries */
+        #presentation-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #pdf-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05); /* Subtle shadow so white pages don't completely vanish on a white background */
+        }
+        /* Invisible hover zones on the left and right sides of the screen */
+        .nav-zone {
+            position: absolute;
+            top: 0;
+            width: 15%; /* Spans 15% of the screen width on each side */
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .left-zone { left: 0; }
+        .right-zone { right: 0; }
+
+        /* Navigation Arrows */
+        .arrow {
+            font-size: 3rem;
+            color: #333333;
+            background-color: rgba(255, 255, 255, 0.8);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            user-select: none;
+            pointer-events: none; /* Prevents the arrow element from blocking the hover zone click */
+        }
+        .left-zone:hover .arrow {
+            opacity: 1;
+            transform: translateX(10px);
+        }
+        .right-zone:hover .arrow {
+            opacity: 1;
+            transform: translateX(-10px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="presentation-container">
+        <!-- Hover Zones -->
+        <div class="nav-zone left-zone" onclick="prevPage()">
+            <div class="arrow">&#8249;</div>
+        </div>
+        <div class="nav-zone right-zone" onclick="nextPage()">
+            <div class="arrow">&#8250;</div>
+        </div>
+
+        <!-- The Canvas where the PDF renders natively -->
+        <canvas id="pdf-canvas"></canvas>
+    </div>
+
+    <script>
+        // Verbatim reference to your file name
+        const url = 'SVLB.pdf'; 
+
+        let pdfDoc = null,
+            pageNum = 1,
+            pageIsRendering = false,
+            pageNumPending = null;
+
+        const canvas = document.getElementById('pdf-canvas'),
+              ctx = canvas.getContext('2d');
+
+        // Set workers info for PDF.js library
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        // Render the page dynamically adjusted to the window bounds
+        function renderPage(num) {
+            pageIsRendering = true;
+
+            pdfDoc.getPage(num).then(page => {
+                // Calculate scale to perfectly fill height/width boundaries
+                const viewport = page.getViewport({ scale: 1 });
+                const widthScale = window.innerWidth / viewport.width;
+                const heightScale = window.innerHeight / viewport.height;
+                const optimalScale = Math.min(widthScale, heightScale); // Uses 'Fit' logic to prevent cropping
+
+                const dynamicViewport = page.getViewport({ scale: optimalScale });
+                
+                // Adjust canvas resolution to display perfectly crisp pixels
+                const outputScale = window.devicePixelRatio || 1; // Respects Retina/Mac high PPI screens
+                canvas.width = Math.floor(dynamicViewport.width * outputScale);
+                canvas.height = Math.floor(dynamicViewport.height * outputScale);
+                canvas.style.width = Math.floor(dynamicViewport.width) + "px";
+                canvas.style.height = Math.floor(dynamicViewport.height) + "px";
+
+                const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: dynamicViewport,
+                    transform: transform
+                };
+
+                page.render(renderContext).promise.then(() => {
+                    pageIsRendering = false;
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                });
+            });
+        }
+
+        // Handle page queues during transitions
+        function queueRenderPage(num) {
+            if (pageIsRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        // Navigation Logic
+        function prevPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+
+        function nextPage() {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+
+        // Keyboard Navigation (Left/Right Arrow keys)
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') prevPage();
+            if (e.key === 'ArrowRight') nextPage();
+        });
+
+        // Window resize event listener to adjust presentation on the fly
+        window.addEventListener('resize', () => {
+            if (pdfDoc) queueRenderPage(pageNum);
+        });
+
+        // Load Document
+        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+            pdfDoc = pdfDoc_;
+            renderPage(pageNum);
+        });
+    </script>
+</body>
+</html>
