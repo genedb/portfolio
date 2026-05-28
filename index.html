@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-    <title>Gene Dubovoy - Portfolio - BSc (Hons) Architectural Technology</title>
-    <meta name="description" content="Final Year Project by Gene Dubovoy for BSc (Hons) Architectural Technology - 2,500m² Sheaf Valley Link Building">
-
+    <title>Portfolio Presentation</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
@@ -55,7 +53,7 @@
             box-shadow: none;
         }
 
-        /* Navigation Arrows */
+        /* Desktop Hover Navigation Arrows */
         .arrow-container {
             position: fixed;
             top: 50%;
@@ -76,6 +74,89 @@
             padding-bottom: 8px; 
             box-sizing: border-box;
         }
+
+        /* Mobile Controls Framework */
+        #mob-controls-wrapper {
+            display: none; /* Hidden on desktop */
+        }
+
+        .mob-btn {
+            background-color: #f5f5f5;
+            color: #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: opacity 0.2s ease;
+        }
+        
+        .mob-btn svg {
+            width: 28px;
+            height: 28px;
+            stroke: #333;
+        }
+
+        /* Mobile Detection & Layout Media Queries */
+        @media (max-width: 768px), (pointer: coarse) {
+            /* Disable Desktop Elements */
+            .arrow-container { display: none !important; }
+            
+            /* Enable Mobile Wrapper */
+            #mob-controls-wrapper { display: block; }
+
+            /* Portrait Mode Strategy */
+            @media (orientation: portrait) {
+                #scroll-wrapper { 
+                    bottom: 80px; 
+                    height: calc(100% - 80px); 
+                }
+                #mob-controls-wrapper {
+                    position: fixed;
+                    bottom: 0; left: 0;
+                    width: 100%; height: 80px;
+                    background: #ffffff;
+                    border-top: 1px solid #e0e0e0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-evenly;
+                    z-index: 2000;
+                }
+                .mob-btn {
+                    width: 55px; height: 55px;
+                    padding-bottom: 4px; /* Optical unicode centering */
+                }
+                #mob-zoom { padding-bottom: 0; }
+            }
+
+            /* Landscape Mode Strategy */
+            @media (orientation: landscape) {
+                #scroll-wrapper { 
+                    height: 100%; 
+                }
+                #mob-controls-wrapper {
+                    position: fixed;
+                    top: 0; left: 0;
+                    width: 100%; height: 100%;
+                    pointer-events: none; /* Let touches pass through the wrapper */
+                    z-index: 2000;
+                }
+                .mob-btn {
+                    position: absolute;
+                    pointer-events: auto; /* Reactivate clicks on buttons */
+                    width: 55px; height: 55px;
+                    background-color: rgba(245, 245, 245, 0.85);
+                    padding-bottom: 4px;
+                }
+                #mob-zoom { padding-bottom: 0; }
+                
+                #mob-prev { top: 50%; left: 20px; transform: translateY(-50%); }
+                #mob-next { top: 50%; right: 20px; transform: translateY(-50%); }
+                #mob-zoom { top: calc(50% - 75px); right: 20px; transform: translateY(-50%); }
+            }
+        }
     </style>
 </head>
 <body>
@@ -86,6 +167,19 @@
 
     <div id="arrow-left" class="arrow-container">&#8249;</div>
     <div id="arrow-right" class="arrow-container">&#8250;</div>
+
+    <div id="mob-controls-wrapper">
+        <div id="mob-prev" class="mob-btn">&#8249;</div>
+        <div id="mob-zoom" class="mob-btn">
+            <svg id="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+            <svg id="icon-zoom-out" style="display:none;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+        </div>
+        <div id="mob-next" class="mob-btn">&#8250;</div>
+    </div>
 
     <script>
         const url = 'SVLB.pdf';
@@ -98,6 +192,9 @@
         let isZoomed = false;
         const ZOOM_MULTIPLIER = 2.0;
 
+        // Mobile device flag to intercept grid clicks
+        const isMobileDevice = () => window.matchMedia("(max-width: 768px)").matches || window.matchMedia("(pointer: coarse)").matches;
+
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         function renderPage(num) {
@@ -106,8 +203,10 @@
             pdfDoc.getPage(num).then(function(page) {
                 const viewportUnscaled = page.getViewport({ scale: 1.0 });
                 
+                // Account for portrait mobile bar subtraction in layout math
+                const wrapperHeight = document.getElementById('scroll-wrapper').clientHeight;
                 const scaleX = window.innerWidth / viewportUnscaled.width;
-                const scaleY = window.innerHeight / viewportUnscaled.height;
+                const scaleY = wrapperHeight / viewportUnscaled.height;
                 const baseScale = Math.min(scaleX, scaleY);
                 
                 baseWidth = viewportUnscaled.width * baseScale;
@@ -143,8 +242,7 @@
                         renderPage(pageNumPending);
                         pageNumPending = null;
                     }
-                    // Reposition arrows to sit perfectly within margins post-render
-                    positionArrows();
+                    if (!isMobileDevice()) positionArrows();
                 });
             });
             
@@ -177,128 +275,4 @@
         }
 
         function toggleZoom() {
-            // CRITICAL EXCLUSION: Disable zoom completely on first and last pages
-            if (pageNum === 1 || pageNum === pdfDoc.numPages) return;
-
-            isZoomed = !isZoomed;
-            const wrapper = document.getElementById('scroll-wrapper');
-            const canvas = document.getElementById('pdf-canvas');
-
-            if (isZoomed) {
-                wrapper.classList.add('zoomed');
-                canvas.style.width = (baseWidth * ZOOM_MULTIPLIER) + 'px';
-                canvas.style.height = (baseHeight * ZOOM_MULTIPLIER) + 'px';
-                
-                wrapper.scrollLeft = (canvas.offsetWidth - window.innerWidth) / 2;
-                wrapper.scrollTop = (canvas.offsetHeight - window.innerHeight) / 2;
-            } else {
-                resetZoom();
-            }
-        }
-
-        function resetZoom() {
-            isZoomed = false;
-            const wrapper = document.getElementById('scroll-wrapper');
-            const canvas = document.getElementById('pdf-canvas');
-            
-            wrapper.classList.remove('zoomed');
-            canvas.style.width = baseWidth + 'px';
-            canvas.style.height = baseHeight + 'px';
-            
-            wrapper.scrollLeft = 0;
-            wrapper.scrollTop = 0;
-        }
-
-        function updateContextualRules() {
-            const arrowRight = document.getElementById('arrow-right');
-            if (pdfDoc && pageNum === pdfDoc.numPages) {
-                arrowRight.innerHTML = '&#8634;'; 
-            } else {
-                arrowRight.innerHTML = '&#8250;'; 
-            }
-        }
-
-        // Dynamically shifts arrows outside the active presentation area based on current asset bounds
-        function positionArrows() {
-            const arrowLeft = document.getElementById('arrow-left');
-            const arrowRight = document.getElementById('arrow-right');
-            const arrowWidth = 110;
-
-            // Calculate the remaining white space margin on either side of the image
-            const horizontalMargin = (window.innerWidth - baseWidth) / 2;
-
-            if (horizontalMargin > arrowWidth + 20) {
-                // If white borders exist, center the arrows perfectly inside them
-                arrowLeft.style.left = ((horizontalMargin - arrowWidth) / 2) + 'px';
-                arrowRight.style.right = ((horizontalMargin - arrowWidth) / 2) + 'px';
-            } else {
-                // Fallback to screen margins if the presentation fills the screen width entirely
-                arrowLeft.style.left = '20px';
-                arrowRight.style.right = '20px';
-            }
-        }
-
-        document.addEventListener('mousemove', (e) => {
-            const x = e.clientX;
-            const width = window.innerWidth;
-            const arrowLeft = document.getElementById('arrow-left');
-            const arrowRight = document.getElementById('arrow-right');
-            
-            arrowLeft.style.opacity = '0';
-            arrowRight.style.opacity = '0';
-            
-            if (x < width * 0.3) {
-                if (pageNum > 1) { 
-                    arrowLeft.style.opacity = '1';
-                    document.body.style.cursor = 'pointer';
-                } else {
-                    document.body.style.cursor = 'auto'; 
-                }
-            } else if (x > width * 0.7) {
-                arrowRight.style.opacity = '1';
-                document.body.style.cursor = 'pointer';
-            } else {
-                // Set cursor rules based on page positioning restrictions
-                if (pageNum === 1 || (pdfDoc && pageNum === pdfDoc.numPages)) {
-                    document.body.style.cursor = 'auto'; // Normal pointer on first and last page
-                } else {
-                    document.body.style.cursor = isZoomed ? 'var(--cursor-zoom-out)' : 'var(--cursor-zoom-in)';
-                }
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            const wrapper = document.getElementById('scroll-wrapper');
-            
-            if (e.clientX >= wrapper.clientWidth || e.clientY >= wrapper.clientHeight) {
-                return;
-            }
-
-            const x = e.clientX;
-            const width = window.innerWidth;
-            
-            if (x < width * 0.3) {
-                if (pageNum > 1) onPrevPage();
-            } else if (x > width * 0.7) {
-                onNextPage();
-            } else {
-                toggleZoom();
-            }
-        });
-
-        window.addEventListener('resize', () => {
-            resetZoom();
-            if (pdfDoc) {
-                queueRenderPage(pageNum);
-            }
-        });
-
-        pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
-            pdfDoc = pdfDoc_;
-            renderPage(pageNum);
-        }).catch(function(error) {
-            console.error('Error loading presentation framework:', error);
-        });
-    </script>
-</body>
-</html>
+            if (pageNum === 1 || pageNum === pdf
