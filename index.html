@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-    <title>Portfolio Presentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gene Dubovoy - Portfolio - BSc (Hons) Architectural Technology</title>
+    <meta name="description" content="Final Year Project by Gene Dubovoy for BSc (Hons) Architectural Technology - 2,500m² Sheaf Valley Link Building">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
@@ -20,25 +21,31 @@
             width: 100%;
             height: 100%;
             background-color: #ffffff;
-            font-family: sans-serif;
-            
-            /* Disable native text selection highlighting */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
-            -ms-user-select: none;
-            
             overflow: hidden;
         }
 
+        /* App Layout Wrapper */
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
         #scroll-wrapper {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            width: 100%; height: 100%;
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            background-color: #ffffff;
         }
 
         #scroll-wrapper.zoomed {
@@ -53,8 +60,10 @@
             box-shadow: none;
         }
 
-        /* Desktop Hover Navigation Arrows */
-        .arrow-container {
+        /* =========================================
+           DESKTOP UI (Hover Zones & Fading Arrows) 
+           ========================================= */
+        .desktop-arrow {
             position: fixed;
             top: 50%;
             transform: translateY(-50%);
@@ -75,204 +84,107 @@
             box-sizing: border-box;
         }
 
-        /* Mobile Controls Framework */
-        #mob-controls-wrapper {
-            display: none; /* Hidden on desktop */
-        }
+        /* =========================================
+           MOBILE UI BASE (Hidden on Desktop)
+           ========================================= */
+        #mobile-portrait-bar { display: none; }
+        .mobile-land-btn { display: none; }
 
-        .mob-btn {
-            background-color: #f5f5f5;
-            color: #333;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 36px;
-            cursor: pointer;
-            box-sizing: border-box;
-            transition: opacity 0.2s ease;
-        }
+        /* =========================================
+           MOBILE STATE OVERRIDES 
+           ========================================= */
+        body.is-mobile .desktop-arrow { display: none !important; }
         
-        .mob-btn svg {
-            width: 28px;
-            height: 28px;
-            stroke: #333;
-        }
-
-        /* Mobile Detection & Layout Media Queries */
-        @media (max-width: 768px), (pointer: coarse) {
-            /* Disable Desktop Elements */
-            .arrow-container { display: none !important; }
-            
-            /* Enable Mobile Wrapper */
-            #mob-controls-wrapper { display: block; }
-
-            /* Portrait Mode Strategy */
-            @media (orientation: portrait) {
-                #scroll-wrapper { 
-                    bottom: 80px; 
-                    height: calc(100% - 80px); 
-                }
-                #mob-controls-wrapper {
-                    position: fixed;
-                    bottom: 0; left: 0;
-                    width: 100%; height: 80px;
-                    background: #ffffff;
-                    border-top: 1px solid #e0e0e0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-evenly;
-                    z-index: 2000;
-                }
-                .mob-btn {
-                    width: 55px; height: 55px;
-                    padding-bottom: 4px; /* Optical unicode centering */
-                }
-                #mob-zoom { padding-bottom: 0; }
+        /* Mobile Portrait Mode */
+        @media screen and (orientation: portrait) {
+            body.is-mobile #mobile-portrait-bar {
+                display: flex;
+                width: 100%;
+                height: 70px;
+                background-color: #f8f8f8;
+                border-top: 1px solid #ddd;
+                align-items: center;
+                justify-content: space-evenly;
+                z-index: 2000;
+                box-sizing: border-box;
+                padding: 0 10px;
+                flex-shrink: 0; /* Prevents bar from shrinking */
             }
 
-            /* Landscape Mode Strategy */
-            @media (orientation: landscape) {
-                #scroll-wrapper { 
-                    height: 100%; 
-                }
-                #mob-controls-wrapper {
-                    position: fixed;
-                    top: 0; left: 0;
-                    width: 100%; height: 100%;
-                    pointer-events: none; /* Let touches pass through the wrapper */
-                    z-index: 2000;
-                }
-                .mob-btn {
-                    position: absolute;
-                    pointer-events: auto; /* Reactivate clicks on buttons */
-                    width: 55px; height: 55px;
-                    background-color: rgba(245, 245, 245, 0.85);
-                    padding-bottom: 4px;
-                }
-                #mob-zoom { padding-bottom: 0; }
-                
-                #mob-prev { top: 50%; left: 20px; transform: translateY(-50%); }
-                #mob-next { top: 50%; right: 20px; transform: translateY(-50%); }
-                #mob-zoom { top: calc(50% - 75px); right: 20px; transform: translateY(-50%); }
+            .port-btn {
+                background-color: #eaeaea;
+                color: #333;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                padding: 10px 16px;
+                font-size: 16px;
+                font-weight: 600;
+                min-width: 80px;
+                text-align: center;
+                touch-action: manipulation;
+            }
+            .port-btn:active { background-color: #d4d4d4; }
+        }
+
+        /* Mobile Landscape Mode */
+        @media screen and (orientation: landscape) {
+            body.is-mobile #mobile-portrait-bar { display: none !important; }
+            
+            body.is-mobile .mobile-land-btn {
+                display: flex;
+                position: fixed;
+                z-index: 2000;
+                width: 56px;
+                height: 56px;
+                background-color: rgba(245, 245, 245, 0.9);
+                border: 1px solid #ccc;
+                border-radius: 50%;
+                align-items: center;
+                justify-content: center;
+                font-size: 36px;
+                color: #333;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+                touch-action: manipulation;
+            }
+
+            #btn-land-prev {
+                left: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                padding-bottom: 4px;
+            }
+
+            #btn-land-next {
+                right: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                padding-bottom: 4px;
+            }
+
+            #btn-land-zoom {
+                right: 15px;
+                top: calc(50% - 75px); /* Positioned cleanly above right arrow */
+                transform: translateY(-50%);
+                font-size: 22px; /* Smaller icon for zoom */
             }
         }
     </style>
 </head>
 <body>
 
-    <div id="scroll-wrapper">
-        <canvas id="pdf-canvas"></canvas>
-    </div>
-
-    <div id="arrow-left" class="arrow-container">&#8249;</div>
-    <div id="arrow-right" class="arrow-container">&#8250;</div>
-
-    <div id="mob-controls-wrapper">
-        <div id="mob-prev" class="mob-btn">&#8249;</div>
-        <div id="mob-zoom" class="mob-btn">
-            <svg id="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-            </svg>
-            <svg id="icon-zoom-out" style="display:none;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
-            </svg>
+    <div id="app-container">
+        <div id="scroll-wrapper">
+            <canvas id="pdf-canvas"></canvas>
         </div>
-        <div id="mob-next" class="mob-btn">&#8250;</div>
+        
+        <div id="mobile-portrait-bar">
+            <button id="btn-port-prev" class="port-btn" onclick="onPrevPage()">&#8249; Prev</button>
+            <button id="btn-port-zoom" class="port-btn" onclick="toggleZoom()">Zoom In</button>
+            <button id="btn-port-next" class="port-btn" onclick="onNextPage()">Next &#8250;</button>
+        </div>
     </div>
 
-    <script>
-        const url = 'SVLB.pdf';
-        let pdfDoc = null,
-            pageNum = 1,
-            pageRendering = false,
-            pageNumPending = null;
-        
-        let baseWidth = 0, baseHeight = 0;
-        let isZoomed = false;
-        const ZOOM_MULTIPLIER = 2.0;
+    <div id="arrow-left" class="desktop-arrow">&#8249;</div>
+    <div id="arrow-right" class="desktop-arrow">&#8250;</div>
 
-        // Mobile device flag to intercept grid clicks
-        const isMobileDevice = () => window.matchMedia("(max-width: 768px)").matches || window.matchMedia("(pointer: coarse)").matches;
-
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-        function renderPage(num) {
-            pageRendering = true;
-            
-            pdfDoc.getPage(num).then(function(page) {
-                const viewportUnscaled = page.getViewport({ scale: 1.0 });
-                
-                // Account for portrait mobile bar subtraction in layout math
-                const wrapperHeight = document.getElementById('scroll-wrapper').clientHeight;
-                const scaleX = window.innerWidth / viewportUnscaled.width;
-                const scaleY = wrapperHeight / viewportUnscaled.height;
-                const baseScale = Math.min(scaleX, scaleY);
-                
-                baseWidth = viewportUnscaled.width * baseScale;
-                baseHeight = viewportUnscaled.height * baseScale;
-
-                const dpr = window.devicePixelRatio || 1;
-                const crispRenderScale = baseScale * ZOOM_MULTIPLIER * dpr;
-                const viewport = page.getViewport({ scale: crispRenderScale });
-
-                const canvas = document.getElementById('pdf-canvas');
-                const ctx = canvas.getContext('2d');
-                
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                if (isZoomed) {
-                    canvas.style.width = (baseWidth * ZOOM_MULTIPLIER) + 'px';
-                    canvas.style.height = (baseHeight * ZOOM_MULTIPLIER) + 'px';
-                } else {
-                    canvas.style.width = baseWidth + 'px';
-                    canvas.style.height = baseHeight + 'px';
-                }
-
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
-
-                const renderTask = page.render(renderContext);
-                renderTask.promise.then(function() {
-                    pageRendering = false;
-                    if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
-                        pageNumPending = null;
-                    }
-                    if (!isMobileDevice()) positionArrows();
-                });
-            });
-            
-            updateContextualRules();
-        }
-
-        function queueRenderPage(num) {
-            if (pageRendering) {
-                pageNumPending = num;
-            } else {
-                renderPage(num);
-            }
-        }
-
-        function onPrevPage() {
-            if (pageNum <= 1) return;
-            resetZoom();
-            pageNum--;
-            queueRenderPage(pageNum);
-        }
-
-        function onNextPage() {
-            resetZoom();
-            if (pageNum >= pdfDoc.numPages) {
-                pageNum = 1;
-            } else {
-                pageNum++;
-            }
-            queueRenderPage(pageNum);
-        }
-
-        function toggleZoom() {
-            if (pageNum === 1 || pageNum === pdf
+    <div id="btn-land-prev" class="mobile-land-btn" onclick="
