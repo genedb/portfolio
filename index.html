@@ -181,9 +181,11 @@
         </div>
         
         <div id="mobile-dock">
-            <button id="mob-prev" class="mobile-btn" onclick="onPrevPage()"></button>
-            <button id="mob-zoom" class="mobile-btn" onclick="toggleZoom()"></button>
-            <button id="mob-next" class="mobile-btn" onclick="onNextPage()"></button>
+            <button id="mob-prev" class="mobile-btn" style="visibility: hidden;" onclick="onPrevPage()"></button>
+            <button id="mob-zoom" class="mobile-btn" style="visibility: hidden;" onclick="toggleZoom()"></button>
+            <button id="mob-next" class="mobile-btn" onclick="onNextPage()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
         </div>
     </div>
 
@@ -194,7 +196,7 @@
         // SVG Icon Library
         const iconPrev = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`;
         const iconNext = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
-        const iconStartOver = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>`;
+        const iconStartOver = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`;
         const iconZoomIn = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
         const iconZoomOut = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
 
@@ -349,7 +351,6 @@
             const mobNext = document.getElementById('mob-next');
             const mobZoom = document.getElementById('mob-zoom');
 
-            // Visibility replaces display:none to maintain structural grid spacing
             if (mobPrev) {
                 mobPrev.innerHTML = iconPrev;
                 mobPrev.style.visibility = isFirst ? 'hidden' : 'visible';
