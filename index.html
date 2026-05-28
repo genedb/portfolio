@@ -194,7 +194,7 @@
         // SVG Icon Library
         const iconPrev = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`;
         const iconNext = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
-        const iconLoop = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>`;
+        const iconStartOver = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>`;
         const iconZoomIn = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
         const iconZoomOut = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
 
@@ -225,10 +225,9 @@
                 let workWidth = window.innerWidth;
                 let workHeight = window.innerHeight;
 
-                // To ensure the floating dock fits exactly beneath the canvas dynamically, 
-                // we must mathematically shrink the vertical boundary to leave room for it.
+                // Dynamically ensure the floating dock fits beneath the canvas
                 if (isMobile && window.innerHeight > window.innerWidth) {
-                    workHeight -= 220; // Exact tolerance for dock height + dual-side padding bounds
+                    workHeight -= 220; 
                 }
 
                 const scaleX = workWidth / viewportUnscaled.width;
@@ -269,7 +268,7 @@
                         pageNumPending = null;
                     }
                     if (!isMobile) positionDesktopArrows();
-                    updateMobileDockPosition(); // Update dynamic placement after sizing is locked
+                    updateMobileDockPosition(); 
                 });
             });
             
@@ -302,7 +301,7 @@
         }
 
         function toggleZoom() {
-            if (pageNum === 1 || pageNum === pdfDoc.numPages) return;
+            if (pageNum === 1) return;
 
             isZoomed = !isZoomed;
             const wrapper = document.getElementById('scroll-wrapper');
@@ -344,26 +343,27 @@
             const desktopLeft = document.getElementById('arrow-left');
             const desktopRight = document.getElementById('arrow-right');
             if (desktopLeft) desktopLeft.innerHTML = iconPrev;
-            if (desktopRight) desktopRight.innerHTML = isLast ? iconLoop : iconNext;
+            if (desktopRight) desktopRight.innerHTML = isLast ? iconStartOver : iconNext;
 
             const mobPrev = document.getElementById('mob-prev');
             const mobNext = document.getElementById('mob-next');
             const mobZoom = document.getElementById('mob-zoom');
 
+            // Visibility replaces display:none to maintain structural grid spacing
             if (mobPrev) {
                 mobPrev.innerHTML = iconPrev;
-                mobPrev.style.display = isFirst ? 'none' : 'flex';
+                mobPrev.style.visibility = isFirst ? 'hidden' : 'visible';
             }
 
             if (mobNext) {
-                mobNext.innerHTML = isLast ? iconLoop : iconNext;
+                mobNext.innerHTML = isLast ? iconStartOver : iconNext;
             }
 
             if (mobZoom) {
-                if (isFirst || isLast) {
-                    mobZoom.style.display = 'none';
+                if (isFirst) {
+                    mobZoom.style.visibility = 'hidden';
                 } else {
-                    mobZoom.style.display = 'flex';
+                    mobZoom.style.visibility = 'visible';
                     mobZoom.innerHTML = isZoomed ? iconZoomOut : iconZoomIn;
                 }
             }
@@ -375,11 +375,9 @@
             if (!dock) return;
 
             if (window.innerHeight > window.innerWidth) {
-                // Pin the floating dock precisely below the bottom threshold of the image layout 
                 const canvasBottomY = (window.innerHeight / 2) + (baseHeight / 2);
-                let dockTop = canvasBottomY + 16; // The requested 16px padding gap below the image
+                let dockTop = canvasBottomY + 16; 
                 
-                // Absolute constraint to ensure dock doesn't fall off screen bounds
                 const dockHeight = dock.offsetHeight || 88;
                 if (dockTop > window.innerHeight - dockHeight) {
                     dockTop = window.innerHeight - dockHeight;
@@ -391,7 +389,6 @@
                 dock.style.left = '0';
                 dock.style.right = '0';
             } else {
-                // Clear inline constraints when pivoting to landscape
                 dock.style.position = '';
                 dock.style.top = '';
                 dock.style.bottom = '';
@@ -437,7 +434,7 @@
                 arrowRight.style.opacity = '1';
                 document.body.style.cursor = 'pointer';
             } else {
-                if (pageNum === 1 || (pdfDoc && pageNum === pdfDoc.numPages)) {
+                if (pageNum === 1) {
                     document.body.style.cursor = 'auto';
                 } else {
                     document.body.style.cursor = isZoomed ? 'var(--cursor-zoom-out)' : 'var(--cursor-zoom-in)';
