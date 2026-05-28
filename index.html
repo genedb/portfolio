@@ -130,11 +130,10 @@
                 width: 100%;
                 justify-content: center;
                 align-items: center;
-                gap: 24px; /* Space between the circular buttons */
-                padding: 16px 0; /* Padding above and below the buttons */
+                gap: 24px; 
+                padding: 16px 0; 
                 background-color: #ffffff;
                 border-top: 1px solid #f0f0f0;
-                flex-shrink: 0; 
                 z-index: 2000;
             }
         }
@@ -226,10 +225,10 @@
                 let workWidth = window.innerWidth;
                 let workHeight = window.innerHeight;
 
-                // Adjust for the bottom control dock if in portrait mode
+                // To ensure the floating dock fits exactly beneath the canvas dynamically, 
+                // we must mathematically shrink the vertical boundary to leave room for it.
                 if (isMobile && window.innerHeight > window.innerWidth) {
-                    const dock = document.getElementById('mobile-dock');
-                    workHeight -= dock.offsetHeight || 88; // Default 88px roughly accounts for button size + padding
+                    workHeight -= 220; // Exact tolerance for dock height + dual-side padding bounds
                 }
 
                 const scaleX = workWidth / viewportUnscaled.width;
@@ -270,6 +269,7 @@
                         pageNumPending = null;
                     }
                     if (!isMobile) positionDesktopArrows();
+                    updateMobileDockPosition(); // Update dynamic placement after sizing is locked
                 });
             });
             
@@ -341,13 +341,11 @@
             const isLast = (pdfDoc && pageNum === pdfDoc.numPages);
             const isFirst = (pageNum === 1);
 
-            // Update Desktop SVGs
             const desktopLeft = document.getElementById('arrow-left');
             const desktopRight = document.getElementById('arrow-right');
             if (desktopLeft) desktopLeft.innerHTML = iconPrev;
             if (desktopRight) desktopRight.innerHTML = isLast ? iconLoop : iconNext;
 
-            // Update Mobile SVGs
             const mobPrev = document.getElementById('mob-prev');
             const mobNext = document.getElementById('mob-next');
             const mobZoom = document.getElementById('mob-zoom');
@@ -362,13 +360,43 @@
             }
 
             if (mobZoom) {
-                // Completely remove the zoom button on first/last page
                 if (isFirst || isLast) {
                     mobZoom.style.display = 'none';
                 } else {
                     mobZoom.style.display = 'flex';
                     mobZoom.innerHTML = isZoomed ? iconZoomOut : iconZoomIn;
                 }
+            }
+        }
+
+        function updateMobileDockPosition() {
+            if (!isMobile) return;
+            const dock = document.getElementById('mobile-dock');
+            if (!dock) return;
+
+            if (window.innerHeight > window.innerWidth) {
+                // Pin the floating dock precisely below the bottom threshold of the image layout 
+                const canvasBottomY = (window.innerHeight / 2) + (baseHeight / 2);
+                let dockTop = canvasBottomY + 16; // The requested 16px padding gap below the image
+                
+                // Absolute constraint to ensure dock doesn't fall off screen bounds
+                const dockHeight = dock.offsetHeight || 88;
+                if (dockTop > window.innerHeight - dockHeight) {
+                    dockTop = window.innerHeight - dockHeight;
+                }
+                
+                dock.style.position = 'fixed';
+                dock.style.top = dockTop + 'px';
+                dock.style.bottom = 'auto';
+                dock.style.left = '0';
+                dock.style.right = '0';
+            } else {
+                // Clear inline constraints when pivoting to landscape
+                dock.style.position = '';
+                dock.style.top = '';
+                dock.style.bottom = '';
+                dock.style.left = '';
+                dock.style.right = '';
             }
         }
 
