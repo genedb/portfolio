@@ -64,7 +64,7 @@
         }
 
         /* =========================================
-           DESKTOP UI (Hover Zones & Fading Arrows) 
+           DESKTOP UI (Hover Zones & SVG Arrows) 
            ========================================= */
         .desktop-arrow {
             position: fixed;
@@ -75,7 +75,6 @@
             background-color: rgba(245, 245, 245, 0.85);
             color: #333;
             border-radius: 50%;
-            font-size: 96px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -83,92 +82,94 @@
             opacity: 0;
             transition: opacity 0.3s ease, left 0.2s ease, right 0.2s ease;
             z-index: 1000;
-            padding-bottom: 8px; 
             box-sizing: border-box;
         }
 
-        /* =========================================
-           MOBILE UI BASE (Hidden on Desktop)
-           ========================================= */
-        #mobile-portrait-bar { display: none; }
-        .mobile-land-btn { display: none; }
+        .desktop-arrow svg {
+            width: 48px;
+            height: 48px;
+        }
 
         /* =========================================
-           MOBILE STATE OVERRIDES 
+           MOBILE UI (Unified Buttons)
            ========================================= */
-        body.is-mobile .desktop-arrow { display: none !important; }
+        #mobile-dock { display: none; }
         
+        body.is-mobile .desktop-arrow { display: none !important; }
+
+        .mobile-btn {
+            width: 56px; 
+            height: 56px;
+            border-radius: 50%;
+            border: 1px solid #ccc;
+            background-color: rgba(245, 245, 245, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+            color: #333;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+
+        .mobile-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .mobile-btn:active { background-color: #e0e0e0; }
+
         /* Mobile Portrait Mode */
         @media screen and (orientation: portrait) {
-            body.is-mobile #mobile-portrait-bar {
+            body.is-mobile #mobile-dock {
                 display: flex;
+                flex-direction: row;
                 width: 100%;
-                height: 70px;
-                background-color: #f8f8f8;
-                border-top: 1px solid #ddd;
+                justify-content: center;
                 align-items: center;
-                justify-content: space-evenly;
-                z-index: 2000;
-                box-sizing: border-box;
-                padding: 0 10px;
+                gap: 24px; /* Space between the circular buttons */
+                padding: 16px 0; /* Padding above and below the buttons */
+                background-color: #ffffff;
+                border-top: 1px solid #f0f0f0;
                 flex-shrink: 0; 
+                z-index: 2000;
             }
-
-            .port-btn {
-                background-color: #eaeaea;
-                color: #333;
-                border: 1px solid #ccc;
-                border-radius: 6px;
-                padding: 10px 16px;
-                font-size: 16px;
-                font-weight: 600;
-                min-width: 80px;
-                text-align: center;
-                touch-action: manipulation;
-            }
-            .port-btn:active { background-color: #d4d4d4; }
         }
 
         /* Mobile Landscape Mode */
         @media screen and (orientation: landscape) {
-            body.is-mobile #mobile-portrait-bar { display: none !important; }
-            
-            body.is-mobile .mobile-land-btn {
-                display: flex;
-                position: fixed;
+            body.is-mobile #mobile-dock {
+                display: block;
+                position: absolute;
+                top: 0; left: 0; width: 100%; height: 100%;
+                pointer-events: none; 
                 z-index: 2000;
-                width: 56px;
-                height: 56px;
-                background-color: rgba(245, 245, 245, 0.9);
-                border: 1px solid #ccc;
-                border-radius: 50%;
-                align-items: center;
-                justify-content: center;
-                font-size: 36px;
-                color: #333;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-                touch-action: manipulation;
             }
 
-            #btn-land-prev {
+            body.is-mobile .mobile-btn {
+                position: absolute;
+                pointer-events: auto; 
+            }
+
+            #mob-prev {
                 left: 15px;
                 top: 50%;
                 transform: translateY(-50%);
-                padding-bottom: 4px;
             }
 
-            #btn-land-next {
+            #mob-next {
                 right: 15px;
                 top: 50%;
                 transform: translateY(-50%);
-                padding-bottom: 4px;
             }
 
-            #btn-land-zoom {
+            #mob-zoom {
                 right: 15px;
                 top: calc(50% - 75px); 
                 transform: translateY(-50%);
-                font-size: 22px; 
             }
         }
     </style>
@@ -180,21 +181,24 @@
             <canvas id="pdf-canvas"></canvas>
         </div>
         
-        <div id="mobile-portrait-bar">
-            <button id="btn-port-prev" class="port-btn" onclick="onPrevPage()">&#8249; Prev</button>
-            <button id="btn-port-zoom" class="port-btn" onclick="toggleZoom()">Zoom In</button>
-            <button id="btn-port-next" class="port-btn" onclick="onNextPage()">Next &#8250;</button>
+        <div id="mobile-dock">
+            <button id="mob-prev" class="mobile-btn" onclick="onPrevPage()"></button>
+            <button id="mob-zoom" class="mobile-btn" onclick="toggleZoom()"></button>
+            <button id="mob-next" class="mobile-btn" onclick="onNextPage()"></button>
         </div>
     </div>
 
-    <div id="arrow-left" class="desktop-arrow">&#8249;</div>
-    <div id="arrow-right" class="desktop-arrow">&#8250;</div>
-
-    <div id="btn-land-prev" class="mobile-land-btn" onclick="onPrevPage()">&#8249;</div>
-    <div id="btn-land-next" class="mobile-land-btn" onclick="onNextPage()">&#8250;</div>
-    <div id="btn-land-zoom" class="mobile-land-btn" onclick="toggleZoom()">🔍</div>
+    <div id="arrow-left" class="desktop-arrow"></div>
+    <div id="arrow-right" class="desktop-arrow"></div>
 
     <script>
+        // SVG Icon Library
+        const iconPrev = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`;
+        const iconNext = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+        const iconLoop = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>`;
+        const iconZoomIn = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
+        const iconZoomOut = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
+
         const url = 'SVLB.pdf';
         let pdfDoc = null,
             pageNum = 1,
@@ -219,13 +223,13 @@
             pdfDoc.getPage(num).then(function(page) {
                 const viewportUnscaled = page.getViewport({ scale: 1.0 });
                 
-                // Fallback to absolute window dimensions to prevent layout race conditions
                 let workWidth = window.innerWidth;
                 let workHeight = window.innerHeight;
 
-                // Adjust for the bottom control bar if viewing on a mobile device in portrait mode
+                // Adjust for the bottom control dock if in portrait mode
                 if (isMobile && window.innerHeight > window.innerWidth) {
-                    workHeight -= 70;
+                    const dock = document.getElementById('mobile-dock');
+                    workHeight -= dock.offsetHeight || 88; // Default 88px roughly accounts for button size + padding
                 }
 
                 const scaleX = workWidth / viewportUnscaled.width;
@@ -337,32 +341,34 @@
             const isLast = (pdfDoc && pageNum === pdfDoc.numPages);
             const isFirst = (pageNum === 1);
 
+            // Update Desktop SVGs
+            const desktopLeft = document.getElementById('arrow-left');
             const desktopRight = document.getElementById('arrow-right');
-            if (desktopRight) desktopRight.innerHTML = isLast ? '&#8634;' : '&#8250;';
+            if (desktopLeft) desktopLeft.innerHTML = iconPrev;
+            if (desktopRight) desktopRight.innerHTML = isLast ? iconLoop : iconNext;
 
-            const portPrev = document.getElementById('btn-port-prev');
-            const portNext = document.getElementById('btn-port-next');
-            const portZoom = document.getElementById('btn-port-zoom');
+            // Update Mobile SVGs
+            const mobPrev = document.getElementById('mob-prev');
+            const mobNext = document.getElementById('mob-next');
+            const mobZoom = document.getElementById('mob-zoom');
 
-            const landPrev = document.getElementById('btn-land-prev');
-            const landNext = document.getElementById('btn-land-next');
-            const landZoom = document.getElementById('btn-land-zoom');
-
-            if(portPrev) portPrev.style.visibility = isFirst ? 'hidden' : 'visible';
-            if(landPrev) landPrev.style.display = isFirst ? 'none' : 'flex';
-
-            if(portNext) portNext.innerHTML = isLast ? 'Loop &#8634;' : 'Next &#8250;';
-            if(landNext) landNext.innerHTML = isLast ? '&#8634;' : '&#8250;';
-
-            if(portZoom) {
-                portZoom.innerText = isZoomed ? 'Zoom Out' : 'Zoom In';
-                portZoom.disabled = (isFirst || isLast);
-                portZoom.style.opacity = (isFirst || isLast) ? '0.3' : '1';
+            if (mobPrev) {
+                mobPrev.innerHTML = iconPrev;
+                mobPrev.style.display = isFirst ? 'none' : 'flex';
             }
-            if(landZoom) {
-                landZoom.innerText = isZoomed ? '➖' : '🔍';
-                landZoom.style.opacity = (isFirst || isLast) ? '0.3' : '1';
-                landZoom.style.pointerEvents = (isFirst || isLast) ? 'none' : 'auto';
+
+            if (mobNext) {
+                mobNext.innerHTML = isLast ? iconLoop : iconNext;
+            }
+
+            if (mobZoom) {
+                // Completely remove the zoom button on first/last page
+                if (isFirst || isLast) {
+                    mobZoom.style.display = 'none';
+                } else {
+                    mobZoom.style.display = 'flex';
+                    mobZoom.innerHTML = isZoomed ? iconZoomOut : iconZoomIn;
+                }
             }
         }
 
