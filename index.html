@@ -37,6 +37,8 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
+            background-color: #ffffff;
+            transition: background-color 0.3s ease;
         }
 
         #scroll-wrapper {
@@ -49,6 +51,7 @@
             align-items: center;
             justify-content: center;
             background-color: #ffffff;
+            transition: background-color 0.3s ease;
         }
 
         #scroll-wrapper.zoomed {
@@ -113,6 +116,7 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
             touch-action: manipulation;
             flex-shrink: 0;
+            transition: background-color 0.2s ease, color 0.2s ease, border 0.2s ease;
         }
 
         .mobile-btn svg {
@@ -122,7 +126,7 @@
         
         .mobile-btn:active { background-color: #e0e0e0; }
 
-        /* Mobile Portrait Mode */
+        /* Mobile Portrait Mode - Inverted Theme */
         @media screen and (orientation: portrait) {
             body.is-mobile #mobile-dock {
                 display: flex;
@@ -132,13 +136,24 @@
                 align-items: center;
                 gap: 24px; 
                 padding: 16px 0; 
-                background-color: #ffffff;
-                border-top: 1px solid #f0f0f0;
+                background-color: transparent; /* Allows the black app-container background to show through */
+                border-top: none; /* Removed horizontal line */
                 z-index: 2000;
+            }
+
+            /* Inverted styling for portrait mode buttons */
+            body.is-mobile .mobile-btn {
+                background-color: #222222;
+                color: #ffffff;
+                border: 1px solid #444444;
+                box-shadow: 0 2px 8px rgba(255, 255, 255, 0.15); /* Inverted shadow highlighting */
+            }
+            body.is-mobile .mobile-btn:active { 
+                background-color: #444444; 
             }
         }
 
-        /* Mobile Landscape Mode */
+        /* Mobile Landscape Mode - Standard Theme */
         @media screen and (orientation: landscape) {
             body.is-mobile #mobile-dock {
                 display: block;
@@ -227,7 +242,6 @@
                 let workWidth = window.innerWidth;
                 let workHeight = window.innerHeight;
 
-                // Dynamically ensure the floating dock fits beneath the canvas
                 if (isMobile && window.innerHeight > window.innerWidth) {
                     workHeight -= 220; 
                 }
@@ -235,6 +249,19 @@
                 const scaleX = workWidth / viewportUnscaled.width;
                 const scaleY = workHeight / viewportUnscaled.height;
                 const baseScale = Math.min(scaleX, scaleY);
+                
+                // Dynamic Orientation Detection for Background Colour
+                const appContainer = document.getElementById('app-container');
+                const scrollWrapper = document.getElementById('scroll-wrapper');
+                
+                // If the width dictates the scale, there will be blank bars on the top and bottom (vertical orientation)
+                if (scaleX < scaleY) {
+                    appContainer.style.backgroundColor = '#000000';
+                    scrollWrapper.style.backgroundColor = '#000000';
+                } else {
+                    appContainer.style.backgroundColor = '#ffffff';
+                    scrollWrapper.style.backgroundColor = '#ffffff';
+                }
                 
                 baseWidth = viewportUnscaled.width * baseScale;
                 baseHeight = viewportUnscaled.height * baseScale;
